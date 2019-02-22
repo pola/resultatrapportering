@@ -6,8 +6,8 @@ Kopiera filen `config.example.py` till konfigurationsfilen `config.py` och lägg
 
 Lägg även in en kurs i konfigurationsfilen genom att mappa ett namn till kursens ID-nummer i Canvas. Du kan få reda på en kurs ID-nummer genom att gå in på kursen i webbläsaren och titta i adressfältet.
 
-Kör sedan skriptet för en kurs:
-``./betygsrapportering.py <kursnamn>``
+Kör sedan skriptet för en kurs:  
+``betygsrapportering.py <kursnamn>``
 
 ## Användargränssnitt
 Skriptet är interaktivt och flödet är enligt följande.
