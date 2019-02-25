@@ -17,6 +17,12 @@ course = courses[sys.argv[1]]
 
 
 assignments = requests.get(url = base + '/courses/' + str(course) + '/assignments?access_token=' + access_token).json()
+
+if 'errors' in assignments:
+	print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
+	print(assignments['errors'])
+	sys.exit(1)
+
 assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points')]
 
 if len(assignments) == 0:
