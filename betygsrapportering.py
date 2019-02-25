@@ -98,10 +98,10 @@ def set_grade(student, assignment):
 		
 		else:
 			if t == 'pass_fail':
-				if grade == 'P':
+				if grade == 'P' or grade == 'p':
 					grade = 'complete'
 				
-				elif grade == 'F':
+				elif grade == 'F' or grade == 'f':
 					grade = 'incomplete'
 				
 				else:
