@@ -9,6 +9,9 @@ Lägg även in en kurs i konfigurationsfilen genom att mappa ett namn till kurse
 Kör sedan skriptet för en kurs:  
 ``betygsrapportering.py <kursnamn>``
 
+Kursnamnet hämtas från konfigurationsfilen. I `config.example.py` är `tilpro18` kursnamnet och det skulle kunna användas så här:  
+``betygsrapportering.py tilpro18``
+
 ## Användargränssnitt
 Skriptet är interaktivt och flödet är enligt följande.
 1. Sök upp en student genom att ange en del av namnet. Om det finns flera studenter får du välja vilken du vill rapportera betyg för.
