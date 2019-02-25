@@ -46,15 +46,18 @@ def nice_grade(grade):
 
 
 def choose_assignment(student):
-	current_grades = {}
-	
-	submissions = requests.get(url = base + '/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']) + '&access_token=' + access_token).json()
-	
-	for submission in submissions:
-		if submission['grade_matches_current_submission']:
-			current_grades[submission['assignment_id']] = submission['grade']
+	fetch_grades = True
 	
 	while True:
+		if fetch_grades:
+			current_grades = {}
+			
+			submissions = requests.get(url = base + '/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']) + '&access_token=' + access_token).json()
+	
+			for submission in submissions:
+				if submission['grade_matches_current_submission']:
+					current_grades[submission['assignment_id']] = submission['grade']
+		
 		print('\nvälj uppgift för ' + nice_student(student) + ':')
 		print('index  betyg  uppgift')
 	
@@ -93,7 +96,7 @@ def choose_assignment(student):
 				print('ogiligt val, försök igen')
 				continue
 	
-		set_grade(student, assignment_choice)
+		fetch_grades = set_grade(student, assignment_choice)
 
 
 def set_grade(student, assignment):
@@ -110,7 +113,7 @@ def set_grade(student, assignment):
 		
 		if len(grade) == 0:
 			print('avbryter')
-			return
+			return False
 		
 		if grade == '-':
 			grade = ''
@@ -146,10 +149,10 @@ def set_grade(student, assignment):
 		if 'grade' not in result:
 			print('fel från Canvas:')
 			print(result)
-			break
+			return True
 		
 		print('betyg ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
-		break
+		return True
 
 
 while True:
