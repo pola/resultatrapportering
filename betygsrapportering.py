@@ -40,12 +40,25 @@ def nice_grade(grade):
 
 
 def choose_assignment(student):
+	current_grades = {}
+	
+	submissions = requests.get(url = base + '/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']) + '&access_token=' + access_token).json()
+	
+	for submission in submissions:
+		if submission['grade_matches_current_submission']:
+			current_grades[submission['assignment_id']] = submission['grade']
+	
 	while True:
 		print('\nvälj uppgift för ' + nice_student(student) + ':')
+		print('index  betyg  uppgift')
 	
 		i = 1
 		for assignment in assignments:
-			print(str(i) + '\t' + assignment['name'])
+			current_grade = nice_grade(current_grades[assignment['id']]) if assignment['id'] in current_grades else '-'
+			
+			print('{0: <6}'.format(str(i)), end = ' ')
+			print('{0: <7}'.format(current_grade), end = '')
+			print(assignment['name'])
 			i += 1
 	
 		choice = input('>> ')
