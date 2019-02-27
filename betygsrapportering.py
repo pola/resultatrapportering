@@ -144,6 +144,9 @@ def set_grade(student, assignment):
 	while True:
 		print()
 		
+		if not assignment['grade_group_students_individually'] and assignment['group_category_id'] is not None:
+			print('VARNING: detta är en gruppuppgift där alla i gruppen får samma betyg')
+		
 		if t == 'pass_fail': print('skriv in betyget (P, F, -):')
 		elif t == 'points': print('skriv in betyget (0 .. , -):')
 		elif t == 'letter_grade': print('skriv in betyget (' + (', '.join(assignment['grading_scheme'])) + ', -):')
