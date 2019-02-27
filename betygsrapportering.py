@@ -58,11 +58,16 @@ if 'errors' in assignments:
 
 assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
 
+grading_standards = {}
+
 for assignment in assignments:
 	if assignment['grading_standard_id'] is not None:
-		grading_standard = get_object('/courses/' + str(course) + '/grading_standards/' + str(assignment['grading_standard_id']))
+		gsi = assignment['grading_standard_id']
 		
-		assignment['grading_scheme'] = [grade['name'] for grade in grading_standard['grading_scheme']]
+		if gsi not in grading_standards:
+			grading_standards[gsi] = [grade['name'] for grade in get_object('/courses/' + str(course) + '/grading_standards/' + str(gsi))['grading_scheme']]
+		
+		assignment['grading_scheme'] = grading_standards[gsi]
 
 if len(assignments) == 0:
 	print('hittade inga uppgifter')
