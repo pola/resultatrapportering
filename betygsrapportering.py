@@ -23,7 +23,13 @@ if 'errors' in assignments:
 	print(assignments['errors'])
 	sys.exit(1)
 
-assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points')]
+assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
+
+for assignment in assignments:
+	if assignment['grading_standard_id'] is not None:
+		grading_standard = requests.get(url = base + '/courses/' + str(course) + '/grading_standards/' + str(assignment['grading_standard_id']) + '?access_token=' + access_token).json()
+		
+		assignment['grading_scheme'] = [grade['name'] for grade in grading_standard['grading_scheme']]
 
 if len(assignments) == 0:
 	print('hittade inga uppgifter')
@@ -99,7 +105,7 @@ def choose_assignment(student):
 
 
 def set_grade(student, assignment):
-	if assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points': t = assignment['grading_type']
+	if assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade': t = assignment['grading_type']
 	else: raise Exception
 	
 	while True:
@@ -107,6 +113,7 @@ def set_grade(student, assignment):
 		
 		if t == 'pass_fail': print('skriv in betyget (P, F, -):')
 		elif t == 'points': print('skriv in betyget (0 .. , -):')
+		elif t == 'letter_grade': print('skriv in betyget (' + (', '.join(assignment['grading_scheme'])) + ', -):')
 		
 		grade = input('>> ')
 		
@@ -142,6 +149,20 @@ def set_grade(student, assignment):
 				except:
 					print('ogiltigt betyg, försök igen')
 					continue
+			
+			elif t == 'letter_grade':
+				valid_grade = None
+				
+				for x in assignment['grading_scheme']:
+					if x.casefold() == grade.casefold():
+						valid_grade = x
+						break
+				
+				if valid_grade is None:
+					print('ogiltigt betyg, försök igen')
+					continue
+				
+				grade = valid_grade
 		
 		result = requests.put(url = base + '/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']) + '?access_token=' + access_token, data = { 'submission[posted_grade]': grade }).json()
 		
