@@ -22,4 +22,4 @@ Skriptet är interaktivt och flödet är enligt följande.
 Det går alltid att gå tillbaka till föregående steg genom att lämna inmatningsfältet tomt (tryck bara ENTER).
 
 ## Begränsningar
-Just nu finns det endast stöd för uppgifter som har poäng eller godkänt/icke godkänt som betygsskala.
+Just nu finns det endast stöd för uppgifter som har poäng, godkänt/icke godkänt eller graderade betyg (typiskt sett A-F) som betygsskala. Skriptet varnar om man är på väg att sätta ett betyg på en gruppuppgift där alla i gruppen får samma betyg, men man får inte reda på vilka andra studenter som är på väg att få det betyget.
