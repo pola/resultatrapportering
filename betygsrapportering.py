@@ -1,8 +1,42 @@
 #!/usr/bin/python3
 from config import access_token, courses
-import requests, json, sys
+import requests, json, sys, re
 
 base = 'https://kth.instructure.com/api/v1'
+
+
+def get_list(url):
+	response = []
+	
+	while url is not None:
+		if not url.startswith(base): url = base + url
+		
+		if '?' in url: url = url.replace('?', '?per_page=50&')
+		else: url += '?per_page=50'
+		
+		response_this = requests.get(url = url, headers = { 'Authorization': 'Bearer ' + access_token })
+		response_list = response_this.json()
+		
+		if type(response_list) is not list: return response_list
+		
+		response += response_list
+	
+		url = None
+	
+		if 'Link' in response_this.headers:
+			r = re.search('<([^>]+?)>; rel="next"', response_this.headers['Link'])
+		
+			if r is not None: url = r.group(1)
+		
+	return response
+
+
+def get_object(url):
+	return requests.get(url = base + url, headers = { 'Authorization': 'Bearer ' + access_token }).json()
+
+
+def put(url, data):
+	return requests.put(url = base + url, headers = { 'Authorization': 'Bearer ' + access_token }, data = data).json()
 
 
 if len(sys.argv) != 2:
@@ -15,8 +49,7 @@ if sys.argv[1] not in courses:
 
 course = courses[sys.argv[1]]
 
-
-assignments = requests.get(url = base + '/courses/' + str(course) + '/assignments?access_token=' + access_token).json()
+assignments = get_list('/courses/' + str(course) + '/assignments')
 
 if 'errors' in assignments:
 	print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
@@ -27,7 +60,7 @@ assignments = [assignment for assignment in assignments if assignment['published
 
 for assignment in assignments:
 	if assignment['grading_standard_id'] is not None:
-		grading_standard = requests.get(url = base + '/courses/' + str(course) + '/grading_standards/' + str(assignment['grading_standard_id']) + '?access_token=' + access_token).json()
+		grading_standard = get_object('/courses/' + str(course) + '/grading_standards/' + str(assignment['grading_standard_id']))
 		
 		assignment['grading_scheme'] = [grade['name'] for grade in grading_standard['grading_scheme']]
 
@@ -58,7 +91,7 @@ def choose_assignment(student):
 		if fetch_grades:
 			current_grades = {}
 			
-			submissions = requests.get(url = base + '/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']) + '&access_token=' + access_token).json()
+			submissions = get_list('/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']))
 	
 			for submission in submissions:
 				current_grades[submission['assignment_id']] = submission['grade']
@@ -164,7 +197,7 @@ def set_grade(student, assignment):
 				
 				grade = valid_grade
 		
-		result = requests.put(url = base + '/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']) + '?access_token=' + access_token, data = { 'submission[posted_grade]': grade }).json()
+		result = put('/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']), { 'submission[posted_grade]': grade })
 		
 		if 'grade' not in result:
 			print('fel från Canvas:')
@@ -186,7 +219,7 @@ while True:
 		print('sökordet måste ha minst tre tecken')
 		continue
 
-	students = requests.get(url = base + '/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term + '&access_token=' + access_token).json()
+	students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term)
 
 	if 'errors' in students:
 		print('fel från Canvas:')
