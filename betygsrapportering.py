@@ -126,12 +126,19 @@ def choose_assignment(student):
 			assignment_choice = None
 		
 			for assignment in assignments:
-				if assignment['name'] == choice:
+				if assignment['name'].casefold() == choice.casefold():
+					if assignment_choice is not None:
+						print('flera uppgifter har samma namn, ange ett index')
+						assignment_choice = -1
+						break
+					
 					assignment_choice = assignment
-					break
 		
 			if assignment_choice is None:
 				print('ogiligt val, försök igen')
+				continue
+			
+			if assignment_choice == -1:
 				continue
 	
 		fetch_grades = set_grade(student, assignment_choice)
@@ -147,9 +154,11 @@ def set_grade(student, assignment):
 		if not assignment['grade_group_students_individually'] and assignment['group_category_id'] is not None:
 			print('VARNING: detta är en gruppuppgift där alla i gruppen får samma betyg')
 		
-		if t == 'pass_fail': print('skriv in betyget (P, F, -):')
-		elif t == 'points': print('skriv in betyget (0 .. , -):')
-		elif t == 'letter_grade': print('skriv in betyget (' + (', '.join(assignment['grading_scheme'])) + ', -):')
+		print('ange betyg för ' + nice_student(student) + ' på ' + assignment['name'] + ' ', end = '')
+		
+		if t == 'pass_fail': print('(P, F, -):')
+		elif t == 'points': print('(0 .. , -):')
+		elif t == 'letter_grade': print('(' + (', '.join(assignment['grading_scheme'])) + ', -):')
 		
 		grade = input('>> ')
 		
