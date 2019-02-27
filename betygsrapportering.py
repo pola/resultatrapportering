@@ -55,8 +55,7 @@ def choose_assignment(student):
 			submissions = requests.get(url = base + '/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']) + '&access_token=' + access_token).json()
 	
 			for submission in submissions:
-				if submission['grade_matches_current_submission']:
-					current_grades[submission['assignment_id']] = submission['grade']
+				current_grades[submission['assignment_id']] = submission['grade']
 		
 		print('\nvälj uppgift för ' + nice_student(student) + ':')
 		print('index  betyg  uppgift')
