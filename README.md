@@ -39,7 +39,7 @@ Resultatfilen ska innehålla en rad med kolumnhuvuden följt av en rad per stude
 
 Kolumnerna separeras med TAB (`\t`). Det måste vara lika många kolumner i varje rad, men det kan finnas kolumner som varken avser studenter eller uppgifter. Här är ett exempel på en resultatfil:
 ```
-namn	student (ID)	uppg1 (1234)	uppg2 (5678)	uppg3	slutbetyg (9123)
+namn	ID	uppg1 (1234)	uppg2 (5678)	uppg3	slutbetyg (9123)
 Per Silja	456	E	E	C	D
 Tom At	789	E	D	-	E
 Per On	876			C	C
