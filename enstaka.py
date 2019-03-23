@@ -40,7 +40,7 @@ def put(url, data):
 
 
 if len(sys.argv) != 2:
-	print('kör så här: betygsrapportering.py <kursnamn>')
+	print('kör så här: enstaka.py <kursnamn>')
 	sys.exit(1)
 
 if sys.argv[1] not in courses:
@@ -102,14 +102,14 @@ def choose_assignment(student):
 				current_grades[submission['assignment_id']] = submission['grade']
 		
 		print('\nvälj uppgift för ' + nice_student(student) + ':')
-		print('index  betyg  uppgift')
+		print('index  resultat  uppgift')
 	
 		i = 1
 		for assignment in assignments:
 			current_grade = nice_grade(current_grades[assignment['id']]) if assignment['id'] in current_grades else '-'
 			
 			print('{0: <6}'.format(str(i)), end = ' ')
-			print('{0: <7}'.format(current_grade), end = '')
+			print('{0: <10}'.format(current_grade), end = '')
 			print(assignment['name'])
 			i += 1
 	
@@ -157,9 +157,9 @@ def set_grade(student, assignment):
 		print()
 		
 		if not assignment['grade_group_students_individually'] and assignment['group_category_id'] is not None:
-			print('VARNING: detta är en gruppuppgift där alla i gruppen får samma betyg')
+			print('VARNING: detta är en gruppuppgift där alla i gruppen får samma resultat')
 		
-		print('ange betyg för ' + nice_student(student) + ' på ' + assignment['name'] + ' ', end = '')
+		print('ange resultat för ' + nice_student(student) + ' på ' + assignment['name'] + ' ', end = '')
 		
 		if t == 'pass_fail': print('(P, F, -):')
 		elif t == 'points': print('(0 .. , -):')
@@ -183,7 +183,7 @@ def set_grade(student, assignment):
 					grade = 'incomplete'
 				
 				else:
-					print('ogiltigt betyg, ange P eller F')
+					print('ogiltigt resultat, ange P eller F')
 					continue
 			
 			elif t == 'points':
@@ -191,13 +191,13 @@ def set_grade(student, assignment):
 					grade = int(grade)
 				
 					if grade < 0:
-						print('ogiltigt betyg, försök igen')
+						print('ogiltigt resultat, försök igen')
 						continue
 					
 					grade = str(grade)
 			
 				except:
-					print('ogiltigt betyg, försök igen')
+					print('ogiltigt resultat, försök igen')
 					continue
 			
 			elif t == 'letter_grade':
@@ -209,7 +209,7 @@ def set_grade(student, assignment):
 						break
 				
 				if valid_grade is None:
-					print('ogiltigt betyg, försök igen')
+					print('ogiltigt resultat, försök igen')
 					continue
 				
 				grade = valid_grade
@@ -221,7 +221,7 @@ def set_grade(student, assignment):
 			print(result)
 			return True
 		
-		print('betyg ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
+		print('resultat ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
 		return True
 
 

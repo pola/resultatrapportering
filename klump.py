@@ -78,7 +78,7 @@ def grade2api(grade, assignment):
 
 
 if len(sys.argv) != 3:
-	print('kör så här: klumprapportering.py <kursnamn> <filnamn>')
+	print('kör så här: klump.py <kursnamn> <filnamn>')
 	sys.exit(1)
 
 if sys.argv[1] not in courses:
@@ -105,9 +105,9 @@ line_length = len(columns_raw)
 i = 0
 
 while i < len(columns_raw):
-	if re.search('\(ID\)$', columns_raw[i]) is not None:
+	if columns_raw[i] == 'ID':
 		if student_column_id is not None:
-			print('det finns flera kolumner med (ID) i slutet')
+			print('det finns flera kolumner med ID')
 			sys.exit(1)
 		
 		student_column_id = i
