@@ -75,7 +75,7 @@ if len(assignments) == 0:
 
 
 def nice_student(student):
-	return student['short_name'] + ' <' + student['email'] + '>'
+	return (student['short_name'] + ' <' + student['email'] + '>') if 'email' in student else student['short_name']
 
 
 def nice_grade(grade):
