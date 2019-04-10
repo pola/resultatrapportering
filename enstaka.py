@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 from config import access_token, courses
-import requests, json, sys, re
+import requests, json, sys, re, dateutil.parser
 
 base = 'https://kth.instructure.com/api/v1'
 
@@ -99,17 +99,27 @@ def choose_assignment(student):
 			submissions = get_list('/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']))
 	
 			for submission in submissions:
-				current_grades[submission['assignment_id']] = submission['grade']
+				current_grades[submission['assignment_id']] = {
+					'grade': submission['grade'],
+					'date': submission['graded_at']
+				}
 		
 		print('\nvälj uppgift för ' + nice_student(student) + ':')
-		print('index  resultat  uppgift')
+		print('index  resultat  datum             uppgift')
 	
 		i = 1
 		for assignment in assignments:
-			current_grade = nice_grade(current_grades[assignment['id']]) if assignment['id'] in current_grades else '-'
+			current_grade = nice_grade(current_grades[assignment['id']]['grade']) if assignment['id'] in current_grades else '-'
+			current_grade_date = current_grades[assignment['id']]['date']
+			
+			if current_grade_date is not None:
+				current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
+			else:
+				current_grade_date = '                '
 			
 			print('{0: <6}'.format(str(i)), end = ' ')
 			print('{0: <10}'.format(current_grade), end = '')
+			print(current_grade_date + '  ', end = '')
 			print(assignment['name'])
 			i += 1
 	
