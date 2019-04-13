@@ -1,20 +1,32 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/python3
-from config import access_token, courses
+from config import access_token
+from canvascourses import courses
 import requests, json, sys, re, dateutil.parser
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
-base = 'https://kth.instructure.com/api/v1'
+# requests at
+# http://docs.python-requests.org/en/master/
 
-newgrades = {} # global variable for coloring grades this session 
+###############################################################################
+#
+# GLOBAL VARIABLES
+#
 
-color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
+g_base = 'https://kth.instructure.com/api/v1'
+g_newgrades = {} # global variable for coloring grades this session 
+g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
 
+###############################################################################
+#
+# get_list
+#
 def get_list(url):
 	response = []
 	
 	while url is not None:
-		if not url.startswith(base): url = base + url
+		if not url.startswith(g_base): url = g_base + url
 		
 		if '?' in url: url = url.replace('?', '?per_page=50&')
 		else: url += '?per_page=50'
@@ -36,53 +48,34 @@ def get_list(url):
 	return response
 
 
+###############################################################################
+#
+# get_object
+#
 def get_object(url):
-	return requests.get(url = base + url, headers = { 'Authorization': 'Bearer ' + access_token }).json()
+	return requests.get(url = g_base + url, headers = { 'Authorization': 'Bearer ' + access_token }).json()
 
 
+###############################################################################
+#
+# put
+#
 def put(url, data):
-	return requests.put(url = base + url, headers = { 'Authorization': 'Bearer ' + access_token }, data = data).json()
+	return requests.put(url = g_base + url, headers = { 'Authorization': 'Bearer ' + access_token }, data = data).json()
 
 
-if len(sys.argv) != 2:
-	print('kör så här: enstaka.py <kursnamn>')
-	sys.exit(1)
-
-if sys.argv[1] not in courses:
-	print('hittade ej angiven kurs')
-	sys.exit(1)
-
-course = courses[sys.argv[1]]
-
-assignments = get_list('/courses/' + str(course) + '/assignments')
-
-if 'errors' in assignments:
-	print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
-	print(assignments['errors'])
-	sys.exit(1)
-
-assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
-
-grading_standards = {}
-
-for assignment in assignments:
-	if assignment['grading_standard_id'] is not None:
-		gsi = assignment['grading_standard_id']
-		
-		if gsi not in grading_standards:
-			grading_standards[gsi] = [grade['name'] for grade in get_object('/courses/' + str(course) + '/grading_standards/' + str(gsi))['grading_scheme']]
-		
-		assignment['grading_scheme'] = grading_standards[gsi]
-
-if len(assignments) == 0:
-	print('hittade inga uppgifter')
-	sys.exit(1)
-
-
+###############################################################################
+#
+# nice_student
+#
 def nice_student(student):
 	return (student['short_name'] + ' <' + student['email'] + '>') if 'email' in student else student['short_name']
 
 
+###############################################################################
+#
+# nice_grade
+#
 def nice_grade(grade):
 	if grade is None: return '-'
 	
@@ -94,7 +87,11 @@ def nice_grade(grade):
 	return grade
 
 
-def choose_assignment(student):
+###############################################################################
+#
+# choose_assignment
+#
+def choose_assignment(student, course):
 	fetch_grades = True
 	
 	while True:
@@ -123,7 +120,7 @@ def choose_assignment(student):
 				current_grade_date = '                '
 			
 			print('{0: <6}'.format(str(i)), end = ' ')
-			isincolor = color and student['login_id'] + '_' + assignment['name'] in newgrades and newgrades[student['login_id'] + '_' + assignment['name']] != current_grade
+			isincolor = g_color and student['login_id'] + '_' + assignment['name'] in g_newgrades and g_newgrades[student['login_id'] + '_' + assignment['name']] != current_grade
 			if isincolor:
 				print('\033[0;7m', end='')
 			print('{0: <10}'.format(current_grade), end = '')
@@ -169,6 +166,10 @@ def choose_assignment(student):
 		old_grade = nice_grade(current_grades[assignment_choice['id']]['grade']) if assignment_choice['id'] in current_grades else '-'
 		fetch_grades = set_grade(student, assignment_choice, old_grade)
 
+###############################################################################
+#
+# set_grade
+#
 def set_grade(student, assignment, old_grade):
 	if assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade':
                 t = assignment['grading_type']
@@ -246,69 +247,135 @@ def set_grade(student, assignment, old_grade):
 		print('resultat ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
 
 		gradekey = student['login_id'] + '_' + assignment['name'] + '_' + nice_grade(result['grade'])
-		if not student['login_id'] + '_' + assignment['name'] in newgrades:
-			newgrades[student['login_id'] + '_' + assignment['name']] = old_grade 
+		if not student['login_id'] + '_' + assignment['name'] in g_newgrades:
+			g_newgrades[student['login_id'] + '_' + assignment['name']] = old_grade 
 		
 		return True
 
+###############################################################################
+#
+# run_instructions
+# 
+def run_instructions():
+		print('kör så här: enstaka.py <kursnamn>')
+		sys.exit(1)
+      # TODO help text
 
-while True:
-	print('\nsök efter en student:')
-	search_term = input('>> ')
+###############################################################################
+#
+# parse_commandline_options
+# 
+def parse_commandline_options():
+        for arg in sys.argv:
+                if arg == "--nocolor":
+                        g_color = False
+                m = re.search('f(\d\d?)$', arg)
+                if m:
+                        print(m.group(1))
+                m = re.search('t(\d\d?)$', arg)
+                if m:
+                        print(m.group(1))
 
-	if len(search_term) == 0:
-		break
+###############################################################################
+#
+# main
+#
+if __name__ == "__main__":
+	if len(sys.argv) < 2:
+		run_instructions()
+		sys.exit(1)
+
+	parse_commandline_options()
+
+	kurs = sys.argv[1]
+	if kurs not in courses:
+		print('hittade inte kursen', kurs, 'i coursecanvas.py')
+		sys.exit(1)
+                
+	course = courses[kurs]      # canvas course id
 	
-	if len(search_term) < 3:
-		print('sökordet måste ha minst tre tecken')
-		continue
-
-	students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term)
-
-	if 'errors' in students:
-		print('fel från Canvas:')
-		for error in students['errors']:
-			print(error['message'])
-		continue
-
-	elif len(students) == 0:
-		print('hittade inga studenter')
-		continue
-
-	elif len(students) == 1:
-		student = students[0]
+	assignments = get_list('/courses/' + str(course) + '/assignments')
 	
-	else:
-		print('\nvälj en student (1 .. ' + str(len(students)) + '):')
-		
-		i = 1
-		for s in students:
-			print(str(i) + '\t' + nice_student(s))
-			i += 1
-		
-		student = None
-		
-		while True:
-			index = input('>> ')
+	if 'errors' in assignments:
+		print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
+		print(assignments['errors'])
+		sys.exit(1)
+	
+	assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
+	
+	grading_standards = {}
+	
+	for assignment in assignments:
+		if assignment['grading_standard_id'] is not None:
+			gsi = assignment['grading_standard_id']
 			
-			if len(index) == 0:
-				break
+			if gsi not in grading_standards:
+				grading_standards[gsi] = [grade['name'] for grade in get_object('/courses/' + str(course) + '/grading_standards/' + str(gsi))['grading_scheme']]
 			
-			else:
-				try:
-					index = int(index)
-					
-					if index < 1 or index > len(students):
-						print('ogiligt val, försök igen')
-						continue
-						
-					student = students[index - 1]
+			assignment['grading_scheme'] = grading_standards[gsi]
+	
+	if len(assignments) == 0:
+		print('hittade inga uppgifter')
+		sys.exit(1)
+	
+	        
+	while True:
+		print('\nsök efter en student:')
+		search_term = input('>> ')
+	
+		if len(search_term) == 0:
+			break
+		
+		if len(search_term) < 3:
+			print('sökordet måste ha minst tre tecken')
+			continue
+	
+		students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term)
+	
+		if 'errors' in students:
+			print('fel från Canvas:')
+			for error in students['errors']:
+				print(error['message'])
+			continue
+	
+		elif len(students) == 0:
+			print('hittade inga studenter')
+			continue
+	
+		elif len(students) == 1:
+			student = students[0]
+		
+		else:
+			print('\nvälj en student (1 .. ' + str(len(students)) + '):')
+			
+			i = 1
+			for s in students:
+				print(str(i) + '\t' + nice_student(s))
+				i += 1
+			
+			student = None
+			
+			while True:
+				index = input('>> ')
+				
+				if len(index) == 0:
 					break
 				
-				except:
-					print('ogiltigt val, försök igen')
-					continue
-	
-	if student is None: continue
-	
-	choose_assignment(student)
+				else:
+					try:
+						index = int(index)
+						
+						if index < 1 or index > len(students):
+							print('ogiligt val, försök igen')
+							continue
+							
+						student = students[index - 1]
+						break
+					
+					except:
+						print('ogiltigt val, försök igen')
+						continue
+		
+		if student is None: continue
+		
+		choose_assignment(student, course)
