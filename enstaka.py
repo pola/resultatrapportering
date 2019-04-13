@@ -2,8 +2,13 @@
 from config import access_token, courses
 import requests, json, sys, re, dateutil.parser
 
+# TODO, dateutil och request finns inte förinstallerat på alla system.
+
 base = 'https://kth.instructure.com/api/v1'
 
+newgrades = {} # global variable for coloring grades this session 
+
+color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
 
 def get_list(url):
 	response = []
@@ -93,8 +98,8 @@ def choose_assignment(student):
 	fetch_grades = True
 	
 	while True:
+		current_grades = {}
 		if fetch_grades:
-			current_grades = {}
 			
 			submissions = get_list('/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']))
 	
@@ -118,11 +123,16 @@ def choose_assignment(student):
 				current_grade_date = '                '
 			
 			print('{0: <6}'.format(str(i)), end = ' ')
+			isincolor = color and student['login_id'] + '_' + assignment['name'] in newgrades and newgrades[student['login_id'] + '_' + assignment['name']] != current_grade
+			if isincolor:
+				print('\033[0;7m', end='')
 			print('{0: <10}'.format(current_grade), end = '')
 			print(current_grade_date + '  ', end = '')
+			if isincolor:
+				print('\033[0m', end='')
+
 			print(assignment['name'])
 			i += 1
-	
 		choice = input('>> ')
 	
 		if len(choice) == 0:
@@ -150,19 +160,21 @@ def choose_assignment(student):
 					assignment_choice = assignment
 		
 			if assignment_choice is None:
-				print('ogiligt val, försök igen')
+				print('ogiltigt val, försök igen')
 				continue
 			
 			if assignment_choice == -1:
 				continue
-	
-		fetch_grades = set_grade(student, assignment_choice)
 
+		old_grade = nice_grade(current_grades[assignment_choice['id']]['grade']) if assignment_choice['id'] in current_grades else '-'
+		fetch_grades = set_grade(student, assignment_choice, old_grade)
 
-def set_grade(student, assignment):
-	if assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade': t = assignment['grading_type']
-	else: raise Exception
-	
+def set_grade(student, assignment, old_grade):
+	if assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade':
+                t = assignment['grading_type']
+	else:
+                raise Exception
+
 	while True:
 		print()
 		
@@ -223,7 +235,7 @@ def set_grade(student, assignment):
 					continue
 				
 				grade = valid_grade
-		
+
 		result = put('/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']), { 'submission[posted_grade]': grade })
 		
 		if 'grade' not in result:
@@ -232,6 +244,11 @@ def set_grade(student, assignment):
 			return True
 		
 		print('resultat ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
+
+		gradekey = student['login_id'] + '_' + assignment['name'] + '_' + nice_grade(result['grade'])
+		if not student['login_id'] + '_' + assignment['name'] in newgrades:
+			newgrades[student['login_id'] + '_' + assignment['name']] = old_grade 
+		
 		return True
 
 
