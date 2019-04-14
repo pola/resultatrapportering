@@ -1,8 +1,17 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/python3
-from config import access_token
+# -*- coding: utf-8 -*-
 from canvascourses import courses
 import requests, json, sys, re, dateutil.parser
+
+try:
+	fh = open('hemlig-nyckel.txt', 'r')
+	access_token = fh.read().strip()
+	fh.close()
+
+except:
+	print('misslyckades med att läsa in den hemliga nyckeln')
+	print('generera med nyckelskapare.py')
+	sys.exit(1)
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
