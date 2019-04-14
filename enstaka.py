@@ -16,6 +16,7 @@ import requests, json, sys, re, dateutil.parser
 
 g_base = 'https://kth.instructure.com/api/v1'
 g_newgrades = {} # global variable for coloring grades this session 
+g_entryorder= {} # maintains input order of grades
 g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
 
 ###############################################################################
@@ -80,7 +81,8 @@ def nice_grade(grade):
 	if grade is None: return '-'
 	
 	grade = str(grade)
-
+	
+	if grade == '' : return '-'
 	if grade == 'incomplete': return 'F'
 	if grade == 'complete': return 'P'
 	
@@ -120,7 +122,8 @@ def choose_assignment(student, course):
 				current_grade_date = '                '
 			
 			print('{0: <6}'.format(str(i)), end = ' ')
-			isincolor = g_color and student['login_id'] + '_' + assignment['name'] in g_newgrades and g_newgrades[student['login_id'] + '_' + assignment['name']] != current_grade
+			entry = ( student['id'], student['short_name'], assignment['name'] )
+			isincolor = g_color and entry in g_newgrades and g_newgrades[ entry ] != current_grade
 			if isincolor:
 				print('\033[0;7m', end='')
 			print('{0: <10}'.format(current_grade), end = '')
@@ -165,6 +168,8 @@ def choose_assignment(student, course):
 
 		old_grade = nice_grade(current_grades[assignment_choice['id']]['grade']) if assignment_choice['id'] in current_grades else '-'
 		fetch_grades = set_grade(student, assignment_choice, old_grade)
+			
+
 
 ###############################################################################
 #
@@ -238,27 +243,45 @@ def set_grade(student, assignment, old_grade):
 				grade = valid_grade
 
 		result = put('/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']), { 'submission[posted_grade]': grade })
-		
 		if 'grade' not in result:
 			print('fel från Canvas:')
 			print(result)
-			return True
+			return True     # TODO ???
 		
 		print('resultat ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
 
-		gradekey = student['login_id'] + '_' + assignment['name'] + '_' + nice_grade(result['grade'])
-		if not student['login_id'] + '_' + assignment['name'] in g_newgrades:
-			g_newgrades[student['login_id'] + '_' + assignment['name']] = old_grade 
-		
+		entry = ( student['id'], student['short_name'], assignment['name'] )
+		if not entry in g_newgrades:
+			g_newgrades[entry] = old_grade
+		g_entryorder[entry] = nice_grade(grade)
 		return True
 
+###############################################################################
+#
+# entrylist
+# 
+def entrylist():
+	print("Införda resultat i canvas:")
+	changes = False
+	for entry in g_entryorder:
+		email    = entry[0]
+		name     = entry[1]
+		assignm  = entry[2]
+		newgrade = g_entryorder[ entry ]
+		oldgrade = g_newgrades[ entry ]
+		if newgrade != oldgrade :
+			print('  {0: <30} {1: <3} {3} ({2}) '.format(name, newgrade, oldgrade, assignm) )
+			changes = True
+	if not changes:
+		print("  inga resultat införda")
+			
 ###############################################################################
 #
 # run_instructions
 # 
 def run_instructions():
-		print('kör så här: enstaka.py <kursnamn>')
-		sys.exit(1)
+	print('kör så här: enstaka.py <kursnamn>')
+	sys.exit(1)
       # TODO help text
 
 ###############################################################################
@@ -266,7 +289,7 @@ def run_instructions():
 # parse_commandline_options
 # 
 def parse_commandline_options():
-        for arg in sys.argv:
+	for arg in sys.argv:
                 if arg == "--nocolor":
                         g_color = False
                 m = re.search('f(\d\d?)$', arg)
@@ -379,3 +402,4 @@ if __name__ == "__main__":
 		if student is None: continue
 		
 		choose_assignment(student, course)
+	entrylist()
