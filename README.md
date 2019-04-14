@@ -2,8 +2,8 @@
 Katalogen innehåller olika skript för att rapportera in resultat på uppgifter i kurser i Canvas på KTH.
 
 ## Kom igång
-Skripten behöver en hemlig nyckel för att kunna användas. För att skapa en sådan hemlig nyckel, kör nyckelskaparen:
-``$ nyckelskapare.py``
+Skripten behöver en hemlig nyckel för att kunna användas. För att skapa en sådan hemlig nyckel, kör nyckelskaparen:  
+``$ nyckelskapare.py``  
 Nyckeln sparas i filen `hemlig-nyckel.txt` och används sedan av skripten.
 
 För att använda skripten behöver man även ha lagt in de kurser man vill hantera i `canvascourses.py`. Hitta på ett kortnamn till kursen och mappa det namnet till kursens ID-nummer i Canvas. Du kan få reda på en kurs ID-nummer genom att gå in på kursen i webbläsaren och titta i adressfältet. I `canvascourses.py` finns det några exempel på kurser med tillhörande ID-nummer.
