@@ -2,11 +2,13 @@
 Katalogen innehåller olika skript för att rapportera in resultat på uppgifter i kurser i Canvas på KTH.
 
 ## Kom igång
-För att använda skripten behöver man ha skapat en konfigurationsfil. Kopiera filen `config.example.py` till konfigurationsfilen `config.py` och lägg in din API-nyckel. Om du inte har en API-nyckel kan det fås genom att besöka https://kth.instructure.com/profile/settings och klicka på knappen _Ny tillgångstoken_.
+Skripten behöver en hemlig nyckel för att kunna användas. För att skapa en sådan hemlig nyckel, kör nyckelskaparen:
+``$ nyckelskapare.py``
+Nyckeln sparas i filen `hemlig-nyckel.txt` och används sedan av skripten.
 
-Lägg även in en kurs i konfigurationsfilen genom att mappa ett namn till kursens ID-nummer i Canvas. Du kan få reda på en kurs ID-nummer genom att gå in på kursen i webbläsaren och titta i adressfältet. I `config.example.py` finns det några exempel på kurser med tillhörande ID-nummer.
+För att använda skripten behöver man även ha lagt in de kurser man vill hantera i `canvascourses.py`. Hitta på ett kortnamn till kursen och mappa det namnet till kursens ID-nummer i Canvas. Du kan få reda på en kurs ID-nummer genom att gå in på kursen i webbläsaren och titta i adressfältet. I `canvascourses.py` finns det några exempel på kurser med tillhörande ID-nummer.
 
-Alla skript tar åtminstone ett `<kursnamn>` som argument. Ersätt det med något av kursnamnen från konfigurationsfilen. I `config.example.py` är `tilpro18` ett exempel på ett `<kursnamn>`.
+Alla skript tar åtminstone ett `<kursnamn>` som argument. Ersätt det med något av kursnamnen från konfigurationsfilen. I `canvascourses.py` är `tilpro18` ett exempel på ett `<kursnamn>`.
 
 Skripten kan endast rapportera in betyg för studenter som är inlagda på kurser i Canvas och uppgifterna måste i publicerat läge.
 
