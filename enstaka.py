@@ -96,8 +96,9 @@ def nice_grade(grade):
 # choose_assignment
 #
 def choose_assignment(student, course, assignments):
+	global g_lowerlimit
+	global g_upperlimit
 	fetch_grades = True
-	
 	while True:
 		current_grades = {}
 		if fetch_grades:
@@ -143,7 +144,21 @@ def choose_assignment(student, course, assignments):
 	
 		if len(choice) == 0:
 			return
-	
+
+		# TODO special choices ?
+		if choice == '?':
+			print("TODO: call help function")
+			continue
+
+		# Limit assignements to show
+		m = re.search('>(\d\d?)$', choice)
+		if m:
+			g_lowerlimit = int(m.group(1))
+			continue
+		m = re.search('<(\d\d?)$', choice)
+		if m:
+			g_upperlimit = int(m.group(1))
+			continue
 		try:
 			choice = int(choice)
 		
