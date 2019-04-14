@@ -15,9 +15,11 @@ import requests, json, sys, re, dateutil.parser
 #
 
 g_base = 'https://kth.instructure.com/api/v1'
-g_newgrades = {} # global variable for coloring grades this session 
-g_entryorder= {} # maintains input order of grades
+g_oldgrades = {} # global variable for coloring grades this session 
+g_newgrades= {} # maintains input order of grades
 g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
+g_lowerlimit = 0     # limit number of assignment to show
+g_upperlimit = 1000000
 
 ###############################################################################
 #
@@ -93,7 +95,7 @@ def nice_grade(grade):
 #
 # choose_assignment
 #
-def choose_assignment(student, course):
+def choose_assignment(student, course, assignments):
 	fetch_grades = True
 	
 	while True:
@@ -111,8 +113,12 @@ def choose_assignment(student, course):
 		print('\nvälj uppgift för ' + nice_student(student) + ':')
 		print('index  resultat  datum             uppgift')
 	
-		i = 1
-		for assignment in assignments:
+		for i, assignment in enumerate(assignments, 1):
+			if i < g_lowerlimit:
+				continue
+			if i > g_upperlimit:
+				continue
+			
 			current_grade = nice_grade(current_grades[assignment['id']]['grade']) if assignment['id'] in current_grades else '-'
 			current_grade_date = current_grades[assignment['id']]['date']
 			
@@ -123,7 +129,7 @@ def choose_assignment(student, course):
 			
 			print('{0: <6}'.format(str(i)), end = ' ')
 			entry = ( student['id'], student['short_name'], assignment['name'] )
-			isincolor = g_color and entry in g_newgrades and g_newgrades[ entry ] != current_grade
+			isincolor = g_color and entry in g_oldgrades and g_oldgrades[ entry ] != current_grade
 			if isincolor:
 				print('\033[0;7m', end='')
 			print('{0: <10}'.format(current_grade), end = '')
@@ -132,7 +138,7 @@ def choose_assignment(student, course):
 				print('\033[0m', end='')
 
 			print(assignment['name'])
-			i += 1
+			
 		choice = input('>> ')
 	
 		if len(choice) == 0:
@@ -251,9 +257,9 @@ def set_grade(student, assignment, old_grade):
 		print('resultat ' + nice_grade(result['grade']) + ' för ' + nice_student(student) + ' är nu sparat')
 
 		entry = ( student['id'], student['short_name'], assignment['name'] )
-		if not entry in g_newgrades:
-			g_newgrades[entry] = old_grade
-		g_entryorder[entry] = nice_grade(grade)
+		if not entry in g_oldgrades:
+			g_oldgrades[entry] = old_grade
+		g_newgrades[entry] = nice_grade(grade)
 		return True
 
 ###############################################################################
@@ -263,12 +269,12 @@ def set_grade(student, assignment, old_grade):
 def entrylist():
 	print("Införda resultat i canvas:")
 	changes = False
-	for entry in g_entryorder:
+	for entry in g_newgrades:
 		email    = entry[0]
 		name     = entry[1]
 		assignm  = entry[2]
-		newgrade = g_entryorder[ entry ]
-		oldgrade = g_newgrades[ entry ]
+		newgrade = g_newgrades[ entry ]
+		oldgrade = g_oldgrades[ entry ]
 		if newgrade != oldgrade :
 			print('  {0: <30} {1: <3} {3} ({2}) '.format(name, newgrade, oldgrade, assignm) )
 			changes = True
@@ -289,15 +295,16 @@ def run_instructions():
 # parse_commandline_options
 # 
 def parse_commandline_options():
+	global g_color, g_lowerlimit, g_upperlimit
 	for arg in sys.argv:
-                if arg == "--nocolor":
-                        g_color = False
-                m = re.search('f(\d\d?)$', arg)
-                if m:
-                        print(m.group(1))
-                m = re.search('t(\d\d?)$', arg)
-                if m:
-                        print(m.group(1))
+		if arg == "--nocolor":
+			g_color = False
+		m = re.search('f(\d\d?)$', arg)
+		if m:
+			g_lowerlimit = int(m.group(1))
+		m = re.search('t(\d\d?)$', arg)
+		if m:
+			g_upperlimit = int(m.group(1))
 
 ###############################################################################
 #
@@ -317,18 +324,18 @@ if __name__ == "__main__":
                 
 	course = courses[kurs]      # canvas course id
 	
-	assignments = get_list('/courses/' + str(course) + '/assignments')
+	assignments22 = get_list('/courses/' + str(course) + '/assignments')
 	
-	if 'errors' in assignments:
+	if 'errors' in assignments22:
 		print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
-		print(assignments['errors'])
+		print(assignments22['errors'])
 		sys.exit(1)
 	
-	assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
+	assignments22 = [assignment for assignment in assignments22 if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
 	
 	grading_standards = {}
 	
-	for assignment in assignments:
+	for assignment in assignments22:
 		if assignment['grading_standard_id'] is not None:
 			gsi = assignment['grading_standard_id']
 			
@@ -337,7 +344,7 @@ if __name__ == "__main__":
 			
 			assignment['grading_scheme'] = grading_standards[gsi]
 	
-	if len(assignments) == 0:
+	if len(assignments22) == 0:
 		print('hittade inga uppgifter')
 		sys.exit(1)
 	
@@ -401,5 +408,5 @@ if __name__ == "__main__":
 		
 		if student is None: continue
 		
-		choose_assignment(student, course)
+		choose_assignment(student, course, assignments22)
 	entrylist()
