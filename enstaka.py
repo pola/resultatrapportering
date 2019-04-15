@@ -108,10 +108,10 @@ def choose_assignment(student, course, assignments):
 	global g_lowerlimit
 	global g_upperlimit
 	fetch_grades = True
+	
 	while True:
-		current_grades = {}
 		if fetch_grades:
-			
+			current_grades = {}
 			submissions = get_list('/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']))
 	
 			for submission in submissions:
@@ -120,85 +120,112 @@ def choose_assignment(student, course, assignments):
 					'date': submission['graded_at']
 				}
 		
-		print('\nvälj uppgift för ' + nice_student(student) + ':')
-		print('index  resultat  datum             uppgift')
-	
+		auto_choice = -1
+		
 		for i, assignment in enumerate(assignments, 1):
-			if i < g_lowerlimit:
-				continue
-			if i > g_upperlimit:
-				continue
+			if i < g_lowerlimit: continue
+			if i > g_upperlimit: continue
 			
-			current_grade = nice_grade(current_grades[assignment['id']]['grade']) if assignment['id'] in current_grades else '-'
-			current_grade_date = current_grades[assignment['id']]['date']
+			if auto_choice == -1: auto_choice = i
+			else: auto_choice = None
+		
+		if auto_choice is not None and auto_choice != -1:
+			assignment_choice = assignments[auto_choice - 1]
+			auto_choice = True
 			
-			if current_grade_date is not None:
+			print()
+			
+			print('nuvarande resultat för ' + assignment_choice['name'] + ': ', end = '')
+			
+			if assignment_choice['id'] in current_grades:
+				current_grade = nice_grade(current_grades[assignment_choice['id']]['grade'])
+				current_grade_date = current_grades[assignment_choice['id']]['date']
 				current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
+				
+				print(current_grade + ' (' + current_grade_date + ')')
+			
 			else:
-				current_grade_date = '                '
-			
-			print('{0: <6}'.format(str(i)), end = ' ')
-			entry = ( student['id'], student['short_name'], assignment['name'] )
-			isincolor = g_color and entry in g_oldgrades and g_oldgrades[ entry ] != current_grade
-			if isincolor:
-				print('\033[0;7m', end='')
-			print('{0: <10}'.format(current_grade), end = '')
-			print(current_grade_date + '  ', end = '')
-			if isincolor:
-				print('\033[0m', end='')
-
-			print(assignment['name'])
-			
-		choice = input('>> ')
-	
-		if len(choice) == 0:
-			return
-
-		# TODO special choices ?
-		if choice == '?':
-			print("TODO: call help function")
-			continue
-
-		# Limit assignements to show
-		m = re.search('>(\d\d?)$', choice)
-		if m:
-			g_lowerlimit = int(m.group(1))
-			continue
-		m = re.search('<(\d\d?)$', choice)
-		if m:
-			g_upperlimit = int(m.group(1))
-			continue
-		try:
-			choice = int(choice)
+				print('-')
 		
-			if choice < 1 or choice > len(assignments):
-				print('ogiltigt val, försök igen')
+		else:
+			auto_choice = False
+			
+			print('\nvälj uppgift för ' + nice_student(student) + ':')
+			print('index  resultat  datum             uppgift')
+		
+			for i, assignment in enumerate(assignments, 1):
+				if i < g_lowerlimit: continue
+				if i > g_upperlimit: continue
+				
+				current_grade = nice_grade(current_grades[assignment['id']]['grade']) if assignment['id'] in current_grades else '-'
+				current_grade_date = current_grades[assignment['id']]['date']
+				
+				if current_grade_date is not None: current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
+				else: current_grade_date = '                '
+				
+				print('{0: <6}'.format(str(i)), end = ' ')
+				entry = ( student['id'], student['short_name'], assignment['name'] )
+				isincolor = g_color and entry in g_oldgrades and g_oldgrades[ entry ] != current_grade
+				if isincolor: print('\033[0;7m', end='')
+				print('{0: <10}'.format(current_grade), end = '')
+				print(current_grade_date + '  ', end = '')
+				if isincolor: print('\033[0m', end='')
+				
+				print(assignment['name'])
+			
+			choice = input('>> ')
+			
+			if len(choice) == 0:
+				return
+
+			# TODO special choices ?
+			if choice == '?':
+				print("TODO: call help function")
 				continue
-		
-			assignment_choice = assignments[choice - 1]
-	
-		except:
-			assignment_choice = None
-		
-			for assignment in assignments:
-				if assignment['name'].casefold() == choice.casefold():
-					if assignment_choice is not None:
-						print('flera uppgifter har samma namn, ange ett index')
-						assignment_choice = -1
-						break
-					
-					assignment_choice = assignment
-		
-			if assignment_choice is None:
-				print('ogiltigt val, försök igen')
+
+			# Limit assignements to show
+			m = re.search('>(\d\d?)$', choice)
+			if m:
+				g_lowerlimit = int(m.group(1))
 				continue
 			
-			if assignment_choice == -1:
+			m = re.search('<(\d\d?)$', choice)
+			if m:
+				g_upperlimit = int(m.group(1))
 				continue
+			
+			try:
+				choice = int(choice)
+			
+				if choice < 1 or choice > len(assignments):
+					print('ogiltigt val, försök igen')
+					continue
+			
+				assignment_choice = assignments[choice - 1]
+		
+			except:
+				assignment_choice = None
+			
+				for assignment in assignments:
+					if assignment['name'].casefold() == choice.casefold():
+						if assignment_choice is not None:
+							print('flera uppgifter har samma namn, ange ett index')
+							assignment_choice = -1
+							break
+						
+						assignment_choice = assignment
+			
+				if assignment_choice is None:
+					print('ogiltigt val, försök igen')
+					continue
+				
+				if assignment_choice == -1:
+					continue
 
 		old_grade = nice_grade(current_grades[assignment_choice['id']]['grade']) if assignment_choice['id'] in current_grades else '-'
 		fetch_grades = set_grade(student, assignment_choice, old_grade)
-			
+		
+		if auto_choice: break
 
 
 ###############################################################################
