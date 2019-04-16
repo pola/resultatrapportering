@@ -3,15 +3,6 @@
 from canvascourses import courses
 import requests, json, sys, re, dateutil.parser
 
-try:
-	fh = open('hemlig-nyckel.txt', 'r')
-	access_token = fh.read().strip()
-	fh.close()
-
-except:
-	print('misslyckades med att läsa in den hemliga nyckeln')
-	print('generera med nyckelskapare.py')
-	sys.exit(1)
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
@@ -34,7 +25,7 @@ g_upperlimit = 1000000
 #
 # get_list
 #
-def get_list(url):
+def get_list(url, access_token):
 	response = []
 	
 	while url is not None:
@@ -64,7 +55,7 @@ def get_list(url):
 #
 # get_object
 #
-def get_object(url):
+def get_object(url, access_token):
 	return requests.get(url = g_base + url, headers = { 'Authorization': 'Bearer ' + access_token }).json()
 
 
@@ -72,7 +63,7 @@ def get_object(url):
 #
 # put
 #
-def put(url, data):
+def put(url, data, access_token):
 	return requests.put(url = g_base + url, headers = { 'Authorization': 'Bearer ' + access_token }, data = data).json()
 
 
@@ -104,7 +95,7 @@ def nice_grade(grade):
 #
 # choose_assignment
 #
-def choose_assignment(student, course, assignments):
+def choose_assignment(student, course, assignments, access_token):
 	global g_lowerlimit
 	global g_upperlimit
 	fetch_grades = True
@@ -112,7 +103,7 @@ def choose_assignment(student, course, assignments):
 	while True:
 		if fetch_grades:
 			current_grades = {}
-			submissions = get_list('/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']))
+			submissions = get_list('/courses/' + str(course) + '/students/submissions?student_ids[]=' + str(student['id']), access_token)
 	
 			for submission in submissions:
 				current_grades[submission['assignment_id']] = {
@@ -139,6 +130,7 @@ def choose_assignment(student, course, assignments):
 			
 			if assignment_choice['id'] in current_grades:
 				current_grade = nice_grade(current_grades[assignment_choice['id']]['grade'])
+				
 				current_grade_date = current_grades[assignment_choice['id']]['date']
 				current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
 				
@@ -158,7 +150,8 @@ def choose_assignment(student, course, assignments):
 				if i > g_upperlimit: continue
 				
 				current_grade = nice_grade(current_grades[assignment['id']]['grade']) if assignment['id'] in current_grades else '-'
-				current_grade_date = current_grades[assignment['id']]['date']
+				# TODO check why without if, this caused key error 33053
+				current_grade_date = current_grades[assignment['id']]['date'] if 'date' in assignment else None
 				
 				if current_grade_date is not None: current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
 				else: current_grade_date = '                '
@@ -184,14 +177,20 @@ def choose_assignment(student, course, assignments):
 				continue
 
 			# Limit assignements to show
-			m = re.search('>(\d\d?)$', choice)
+			m = re.search('([>|>=|\-f]) *(\d\d?)$', choice)
 			if m:
-				g_lowerlimit = int(m.group(1))
+				lowerlimit = int(m.group(2))
+				if m.group(1) == '>' : lowerlimit += 1
+				if lowerlimit <= g_upperlimit:
+					g_lowerlimit = lowerlimit
 				continue
 			
-			m = re.search('<(\d\d?)$', choice)
+			m = re.search('([<|<=|\-t]) *(\d\d?)$', choice)
 			if m:
-				g_upperlimit = int(m.group(1))
+				upperlimit = int(m.group(2))
+				if m.group(1) == '<' : upperlimit -= 1
+				if upperlimit >= g_lowerlimit:
+					g_upperlimit = upperlimit
 				continue
 			
 			try:
@@ -223,7 +222,7 @@ def choose_assignment(student, course, assignments):
 					continue
 
 		old_grade = nice_grade(current_grades[assignment_choice['id']]['grade']) if assignment_choice['id'] in current_grades else '-'
-		fetch_grades = set_grade(student, assignment_choice, old_grade)
+		fetch_grades = set_grade(student, assignment_choice, old_grade, access_token)
 		
 		if auto_choice: break
 
@@ -232,7 +231,7 @@ def choose_assignment(student, course, assignments):
 #
 # set_grade
 #
-def set_grade(student, assignment, old_grade):
+def set_grade(student, assignment, old_grade, access_token):
 	if assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade':
                 t = assignment['grading_type']
 	else:
@@ -299,7 +298,7 @@ def set_grade(student, assignment, old_grade):
 				
 				grade = valid_grade
 
-		result = put('/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']), { 'submission[posted_grade]': grade })
+		result = put('/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/' + str(student['id']), { 'submission[posted_grade]': grade }, access_token)
 		if 'grade' not in result:
 			print('fel från Canvas:')
 			print(result)
@@ -350,13 +349,27 @@ def parse_commandline_options():
 	for arg in sys.argv:
 		if arg == "--nocolor":
 			g_color = False
-		m = re.search('f(\d\d?)$', arg)
+		m = re.search('\-?f(\d\d?)$', arg)
 		if m:
 			g_lowerlimit = int(m.group(1))
-		m = re.search('t(\d\d?)$', arg)
+		m = re.search('\-?t(\d\d?)$', arg)
 		if m:
 			g_upperlimit = int(m.group(1))
+		if g_upperlimit - g_lowerlimit < 0:
+			g_lowerlimit = 0
+			g_upperlimit = 1000
+		
 
+def canvaskey(nyckelfil):
+	try:
+		fh = open(nyckelfil, 'r')
+		access_token = fh.read().strip()
+		fh.close()
+		return access_token
+	except:
+		raise
+	
+			
 ###############################################################################
 #
 # main
@@ -366,6 +379,16 @@ if __name__ == "__main__":
 		run_instructions()
 		sys.exit(1)
 
+
+	# TODO try several places?
+	acc_token = None
+	try:
+		acc_token = canvaskey('hemlig-nyckel.txt') # or die
+	except:
+		print('misslyckades med att läsa in den hemliga nyckeln')
+		print('generera med nyckelskapare.py')
+		sys.exit(1)
+		
 	parse_commandline_options()
 
 	kurs = sys.argv[1]
@@ -375,7 +398,7 @@ if __name__ == "__main__":
                 
 	course = courses[kurs]      # canvas course id
 	
-	assignments22 = get_list('/courses/' + str(course) + '/assignments')
+	assignments22 = get_list('/courses/' + str(course) + '/assignments', acc_token)
 	
 	if 'errors' in assignments22:
 		print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
@@ -391,7 +414,7 @@ if __name__ == "__main__":
 			gsi = assignment['grading_standard_id']
 			
 			if gsi not in grading_standards:
-				grading_standards[gsi] = [grade['name'] for grade in get_object('/courses/' + str(course) + '/grading_standards/' + str(gsi))['grading_scheme']]
+				grading_standards[gsi] = [grade['name'] for grade in get_object('/courses/' + str(course) + '/grading_standards/' + str(gsi), acc_token)['grading_scheme']]
 			
 			assignment['grading_scheme'] = grading_standards[gsi]
 	
@@ -411,7 +434,7 @@ if __name__ == "__main__":
 			print('sökordet måste ha minst tre tecken')
 			continue
 	
-		students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term)
+		students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term, acc_token)
 	
 		if 'errors' in students:
 			print('fel från Canvas:')
@@ -459,5 +482,5 @@ if __name__ == "__main__":
 		
 		if student is None: continue
 		
-		choose_assignment(student, course, assignments22)
+		choose_assignment(student, course, assignments22, acc_token)
 	entrylist()
