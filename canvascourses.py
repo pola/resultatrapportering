@@ -9,5 +9,6 @@ courses = {
 	'tildav19': 7489,
 	'ir19': 7518,
         'cprog19': 8236,
-        'cprog18': 4722
+        'cprog18': 4722,
+        'maskin19': 7492
 }
