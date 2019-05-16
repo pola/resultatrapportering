@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-from canvascourses import courses
 import requests, json, sys, re, dateutil.parser
 
 
@@ -266,7 +265,6 @@ def choose_assignment(student):
 			choice = input('>> ')
 			
 			if len(choice) == 0:
-				print('hittade inga uppgifter...!')
 				return
 			
 			try:
