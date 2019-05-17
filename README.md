@@ -6,11 +6,10 @@ Skripten behöver en hemlig nyckel för att kunna användas. För att skapa en s
 ``$ nyckelskapare.py``  
 Nyckeln sparas i filen `hemlig-nyckel.txt` och används sedan av skripten.
 
-För att använda skripten behöver man även ha lagt in de kurser man vill hantera i `canvascourses.py`. Hitta på ett kortnamn till kursen och mappa det namnet till kursens ID-nummer i Canvas. Du kan få reda på en kurs ID-nummer genom att gå in på kursen i webbläsaren och titta i adressfältet. I `canvascourses.py` finns det några exempel på kurser med tillhörande ID-nummer.
+Alla skript tar åtminstone ett `<kursnamn>` som argument. Det är en hel eller en del av ett kursnamn som man har en annan roll än student på. Det går att ge smeknamn på kurser, om man exempelvis tycker att ett kursnamn är för långt, genom att köra:__
+``$ smeknamn.py``
 
-Alla skript tar åtminstone ett `<kursnamn>` som argument. Ersätt det med något av kursnamnen från konfigurationsfilen. I `canvascourses.py` är `tilpro18` ett exempel på ett `<kursnamn>`.
-
-Skripten kan endast rapportera in betyg för studenter som är inlagda på kurser i Canvas och uppgifterna måste i publicerat läge.
+Skripten kan endast rapportera in resultat för studenter som är inlagda på kurser i Canvas och uppgifterna måste vara i publicerat läge.
 
 ## enstaka.py
 Det här skriptet kan användas för att rapportera in enstaka uppgifter för enstaka studenter. Det är interaktivt i bemärkelsen att man tillåts söka upp studenter, uppgifter och sätta resultat genom inmatningsfält i terminalen.
@@ -51,7 +50,7 @@ I exemplet ovan finns det tre studenter. Resultat kommer rapporteras in för `up
 ### Hämta resultatfil från Canvas
 Gå in på omdömesmatrisen i Canvas och exportera den som en CSV-fil för att få ett underlag som kan fungera som resultatfil till skriptet. Öppna filen i ett kalkylprogram. För att skapa en resultatfil som skriptet kan läsa in, spara filen som en CSV-fil med TAB som kolumnseparator. Se till att _inte_ ha med några andra tecken runt kolumner, så som `"` eller `'`.
 
-Canvas har en möjlighet att importera en CSV-fil som tidigara har exporterats, och på så sätt uppdatera de ändrade betygen. Det kan tyckas göra det här skriptet onödigt, men erfarnheten har visat att Canvas funktion för att importera CSV-filer inte fungerar tillfredsställande. Webbläsaren skickar ett HTTP-anrop per betyg att ändra, sekventiellt. Det sker i bakgrunden, när man har importerat en fil, och som användare får man ingen återkoppling på hur det går om man inte öppnar webbläsarkonsolen och tittar på nätverkstrafiken. Dessutom hoppar den över studenter långt ned i omdömesmatrisen om för stora kurser, vilket gör att vissa resultat inte rapporteras in alls. Ytterligare ett problem är avsaknaden av felhantering; importeringsfunktionen i Canvas ger inget meddelande om ett resultat är felaktigt angivet eller om en student inte är inlagd i kursen. Det här skriptet löser de problemen genom att inte avslutas förrän alla resultat är inrapporterade och genom att vara generös med att skriva ut eventuella felmeddelanden.
+Canvas har en möjlighet att importera en CSV-fil som tidigara har exporterats, och på så sätt uppdatera de ändrade betygen. Det kan tyckas göra det här skriptet onödigt, men erfarnheten har visat att Canvas funktion för att importera CSV-filer inte fungerar tillfredsställande. Webbläsaren skickar ett HTTP-anrop per resultat att ändra, sekventiellt. Det sker i bakgrunden, när man har importerat en fil, och som användare får man ingen återkoppling på hur det går om man inte öppnar webbläsarkonsolen och tittar på nätverkstrafiken. Dessutom hoppar den över studenter långt ned i omdömesmatrisen om för stora kurser, vilket gör att vissa resultat inte rapporteras in alls. Ytterligare ett problem är avsaknaden av felhantering; importeringsfunktionen i Canvas ger inget meddelande om ett resultat är felaktigt angivet eller om en student inte är inlagd i kursen. Det här skriptet löser de problemen genom att inte avslutas förrän alla resultat är inrapporterade och genom att vara generös med att skriva ut eventuella felmeddelanden.
 
 ### Kontroller
 När skriptet körs kommer det ske extensiva kontroller av resultatfil. Bland annat följande kontrolleras.
