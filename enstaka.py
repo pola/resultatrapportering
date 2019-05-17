@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import requests, json, sys, re, dateutil.parser
-
+import sys, dateutil.parser
+from canvas import g_base, g_grading_schemes, get_access_token, get_list, get_object, put, nice_grade
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
@@ -13,75 +13,9 @@ import requests, json, sys, re, dateutil.parser
 # GLOBAL VARIABLES
 #
 
-g_base = 'https://kth.instructure.com/api/v1'
 g_oldgrades = {} # global variable for coloring grades this session 
 g_newgrades= {} # maintains input order of grades
 g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
-
-
-access_token = None
-grading_schemes = {}
-
-###############################################################################
-#
-# get_list
-#
-def get_list(url):
-	response = []
-	
-	while url is not None:
-		if not url.startswith(g_base): url = g_base + url
-		
-		if '?' in url: url = url.replace('?', '?per_page=100&')
-		else: url += '?per_page=100'
-		
-		response_this = requests.get(url = url, headers = { 'Authorization': 'Bearer ' + access_token })
-		response_list = response_this.json()
-		
-		if type(response_list) is not list: return response_list
-		
-		response += response_list
-	
-		url = None
-	
-		if 'Link' in response_this.headers:
-			r = re.search('<([^>]+?)>; rel="next"', response_this.headers['Link'])
-		
-			if r is not None: url = r.group(1)
-		
-	return response
-
-
-###############################################################################
-#
-# get_object
-#
-def get_object(url):
-	return requests.get(url = g_base + url, headers = { 'Authorization': 'Bearer ' + access_token }).json()
-
-
-###############################################################################
-#
-# put
-#
-def put(url, data):
-	return requests.put(url = g_base + url, headers = { 'Authorization': 'Bearer ' + access_token }, data = data).json()
-
-
-###############################################################################
-#
-# nice_grade
-#
-def nice_grade(grade):
-	if grade is None: return '-'
-	
-	grade = str(grade)
-	
-	if grade == '' : return '-'
-	if grade == 'incomplete': return 'F'
-	if grade == 'complete': return 'P'
-	
-	return grade
 
 
 class Course:
@@ -123,13 +57,13 @@ class Course:
 		return self.__assignments
 	
 	def get_grading_scheme(self, id):
-		global grading_schemes
+		global g_grading_schemes
 		
-		if id not in grading_schemes:
+		if id not in g_grading_schemes:
 			grading_standard = get_object('/courses/' + str(self.id) + '/grading_standards/' + str(id))
-			grading_schemes[id] = [grade['name'] for grade in grading_standard['grading_scheme']] if 'grading_scheme' in grading_standard else None
+			g_grading_schemes[id] = [grade['name'] for grade in grading_standard['grading_scheme']] if 'grading_scheme' in grading_standard else None
 		
-		return grading_schemes[id]
+		return g_grading_schemes[id]
 	
 	def __contains__(self, key):
 		return key in self.name or key in self.code
@@ -426,18 +360,6 @@ def parse_commandline_options():
 		if arg == "--nocolor":
 			g_color = False
 
-
-def canvaskey(nyckelfil):
-	global access_token
-	
-	try:
-		fh = open(nyckelfil, 'r')
-		access_token = fh.read().strip()
-		fh.close()
-		
-	except:
-		access_token = None
-
 ###############################################################################
 #
 # main
@@ -447,32 +369,27 @@ if len(sys.argv) < 2:
 	sys.exit(1)
 
 
-# TODO try several places?
-canvaskey('hemlig-nyckel.txt')
-
-if access_token is None:
+if get_access_token() is None:
 	print('misslyckades med att läsa in den hemliga nyckeln')
 	print('generera med nyckelskapare.py')
 	sys.exit(1)
 
 parse_commandline_options()
 
-courses = [Course(course['id'], course['name'], course['course_code']) for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0]
+all_courses = [Course(course['id'], course['name'], course['course_code']) for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0]
 
 course_term = sys.argv[1]
-courses_list = [course for course in courses if (course_term in course)]
+courses = [course for course in all_courses if (course_term in course)]
 
-if len(courses_list) == 0:
+if len(courses) == 0:
 	print('hittade ingen kurs som matchade "' + kurs + '"')
 	sys.exit(1)
 
 
 print('resultat för:')
 
-courses = {}
-for course in courses_list:
+for course in courses:
 	print('\t' + str(course))
-	courses[course.id] = course
 
 while True:
 	print('\nsök efter en student:')
@@ -488,7 +405,7 @@ while True:
 	students = {}
 	
 	for course in courses:
-		course_students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student&search_term=' + search_term)
+		course_students = get_list('/courses/' + str(course.id) + '/users?enrollment_type[]=student&search_term=' + search_term)
 		
 		if 'errors' in course_students:
 			print('fel från Canvas:')
@@ -499,7 +416,7 @@ while True:
 			if course_student['id'] not in students:
 				students[course_student['id']] = Student(course_student['id'], course_student['name'], course_student['login_id'] if 'login_id' in course_student else None)
 			
-			students[course_student['id']].courses.append(courses[course])
+			students[course_student['id']].courses.append(course)
 	
 	students = [students[key] for key in students]
 	
