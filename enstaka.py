@@ -238,7 +238,7 @@ def set_grade(student, assignment, old_grade):
 		print()
 		
 		if assignment.grades_affect_group: print('VARNING: detta är en gruppuppgift där alla i gruppen får samma resultat')
-		if assignment.grading_type == 'letter_grade' and assignment.grading_scheme is None: print('VARNING: uppgiften borde ha en graderad betygsskala, men det verkar den inte ha -- det kanske inte går att spara nya resultat')
+		if assignment.grading_type == 'letter_grade' and assignment.grading_scheme is None: print('VARNING: uppgiften borde ha en graderad betygsskala, men det verkar den inte ha')
 		
 		if len(courses) == 1: print('ange nytt resultat för \'' + str(student) + '\' på \'' + str(assignment) + '\'', end = ' ')
 		else: print('ange nytt resultat för \'' + str(student) + '\' på \'' + str(assignment) + '\' i \'' + str(assignment.course) + '\'', end = ' ')
