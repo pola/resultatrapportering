@@ -47,6 +47,10 @@ def put(url, data):
 	return requests.put(url = g_base + url, headers = { 'Authorization': 'Bearer ' + get_access_token() }, data = data).json()
 
 
+def delete(url):
+	return requests.delete(url = g_base + url, headers = { 'Authorization': 'Bearer ' + get_access_token() }).json()
+
+
 def get_access_token():
 	global g_access_token
 	
