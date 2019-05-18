@@ -19,10 +19,11 @@ g_color = True   # TODO göra optional, kolla färgändring fungerar på alla pl
 
 
 class Course:
-	def __init__(self, id, name, code):
+	def __init__(self, id, name, code, date_start):
 		self.id = id
 		self.name = name
 		self.code = code
+		self.date_start = date_start
 		self.__assignments = None
 	
 	def get_assignments(self):
@@ -373,7 +374,7 @@ if get_access_token() is None:
 
 parse_commandline_options()
 
-all_courses = [Course(course['id'], course['name'], course['course_code']) for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0]
+all_courses = [Course(course['id'], course['name'], course['course_code'], course['start_at'][0:10]) for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0]
 
 course_term = sys.argv[1]
 courses = [course for course in all_courses if (course_term in course)]
@@ -381,6 +382,9 @@ courses = [course for course in all_courses if (course_term in course)]
 if len(courses) == 0:
 	print('hittade ingen kurs som matchade "' + kurs + '"')
 	sys.exit(1)
+
+
+courses.sort(key = lambda x: x.date_start + x.name)
 
 
 print('resultat för:')
