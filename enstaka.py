@@ -40,15 +40,8 @@ class Course:
 				if not assignment['published']: continue
 				if assignment['grading_type'] not in ['pass_fail', 'points', 'letter_grade']: continue
 				
-				if assignment['grading_standard_id'] is not None:
-					grading_scheme = self.get_grading_scheme(assignment['grading_standard_id'])
-					
-					if grading_scheme is None:
-						print('kunde ej läsa in betygsskala för uppgift \'' + str(assignment['name']) + '\' i kurs \'' + self.name + '\'')
-						sys.exit(1)
-				
-				else:
-					grading_scheme = None
+				if assignment['grading_standard_id'] is not None: grading_scheme = self.get_grading_scheme(assignment['grading_standard_id'])
+				else: grading_scheme = None
 				
 				grades_affect_group = not assignment['grade_group_students_individually'] and assignment['group_category_id'] is not None
 				
@@ -244,13 +237,17 @@ def set_grade(student, assignment, old_grade):
 		print()
 		
 		if assignment.grades_affect_group: print('VARNING: detta är en gruppuppgift där alla i gruppen får samma resultat')
+		if assignment.grading_type == 'letter_grade' and assignment.grading_scheme is None: print('VARNING: uppgiften borde ha en graderad betygsskala, men det verkar den inte ha -- det kanske inte går att spara nya resultat')
 		
-		if len(courses) == 1: print('ange resultat för \'' + str(student) + '\' på \'' + str(assignment) + '\' ', end = '')
-		else: print('ange resultat för \'' + str(student) + '\' på \'' + str(assignment) + '\' i \'' + str(assignment.course) + '\'', end = '')
+		if len(courses) == 1: print('ange nytt resultat för \'' + str(student) + '\' på \'' + str(assignment) + '\'', end = ' ')
+		else: print('ange nytt resultat för \'' + str(student) + '\' på \'' + str(assignment) + '\' i \'' + str(assignment.course) + '\'', end = ' ')
 		
 		if assignment.grading_type == 'pass_fail': print('(P, F, -):')
 		elif assignment.grading_type == 'points': print('(0 .. , -):')
-		elif assignment.grading_type == 'letter_grade': print('(' + (', '.join(assignment.grading_scheme)) + ', -):')
+		elif assignment.grading_type == 'letter_grade' and assignment.grading_scheme is not None: print('(' + (', '.join(assignment.grading_scheme)) + ', -):')
+		elif assignment.grading_type == 'letter_grade' and assignment.grading_scheme is None: print('(...okänd betygsskala..., -):')
+		
+		print('nuvarande resultat: ' + old_grade)
 		
 		grade = input('>> ')
 		
@@ -287,7 +284,7 @@ def set_grade(student, assignment, old_grade):
 					print('ogiltigt resultat, försök igen')
 					continue
 			
-			elif assignment.grading_type == 'letter_grade':
+			elif assignment.grading_type == 'letter_grade' and assignment.grading_scheme is not None:
 				valid_grade = None
 				
 				for x in assignment.grading_scheme:
