@@ -6,7 +6,7 @@ Skripten behöver en hemlig nyckel för att kunna användas. För att skapa en s
 ``$ nyckelskapare.py``  
 Nyckeln sparas i filen `hemlig-nyckel.txt` och används sedan av skripten.
 
-Alla skript tar åtminstone ett `<kursnamn>` som argument. Det är en hel eller en del av ett kursnamn som man har en annan roll än student på. Det går att ge smeknamn på kurser, om man exempelvis tycker att ett kursnamn är för långt, genom att köra:__
+Alla skript tar åtminstone ett `<kursnamn>` som argument. Det är en hel eller en del av ett kursnamn som man har en annan roll än student på. Det går att ge smeknamn på kurser, om man exempelvis tycker att ett kursnamn är för långt, genom att köra:  
 ``$ smeknamn.py``
 
 Skripten kan endast rapportera in resultat för studenter som är inlagda på kurser i Canvas och uppgifterna måste vara i publicerat läge.
