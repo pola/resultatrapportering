@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys, dateutil.parser
-from canvas import g_base, g_grading_schemes, get_access_token, get_list, get_object, put, nice_grade
+from canvas import g_grading_schemes, get_access_token, get_list, get_object, put, nice_grade
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
@@ -301,7 +301,7 @@ def set_grade(student, assignment, old_grade):
 				
 				grade = valid_grade
 
-		result = put('/courses/' + str(course) + '/assignments/' + str(assignment.id) + '/submissions/' + str(student.id), { 'submission[posted_grade]': grade })
+		result = put('/courses/' + str(assignment.course.id) + '/assignments/' + str(assignment.id) + '/submissions/' + str(student.id), { 'submission[posted_grade]': grade })
 		
 		# tvinga omladdning av studentens alla resultat för aktuell kurs från Canvas in till vår lokala cache
 		student.get_results(assignment.course, True)
