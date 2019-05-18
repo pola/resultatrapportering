@@ -105,8 +105,8 @@ class Student:
 		
 		return self.__results[course]
 	
-	def get_result(self, course, assignment, force_upgrade = False):
-		current_grades = self.get_results(course, force_upgrade = force_upgrade)
+	def get_result(self, assignment, force_upgrade = False):
+		current_grades = self.get_results(assignment.course, force_upgrade = force_upgrade)
 		return current_grades[assignment] if assignment in current_grades else {'grade': '-', 'date': None}
 	
 	def __str__(self):
@@ -169,7 +169,7 @@ def choose_assignment(student):
 					print('\n' + str(assignment.course))
 					previous_course = assignment.course
 				
-				current_result = student.get_result(course, assignment)
+				current_result = student.get_result(assignment)
 				
 				current_grade = nice_grade(current_result['grade'])
 				current_grade_date = current_result['date']
@@ -222,7 +222,7 @@ def choose_assignment(student):
 				if assignment_choice == -1:
 					continue
 		
-		old_grade = nice_grade(student.get_result(course, assignment_choice)['grade'])
+		old_grade = nice_grade(student.get_result(assignment_choice)['grade'])
 		fetch_grades = set_grade(student, assignment_choice, old_grade)
 		
 		if auto_choice: break
