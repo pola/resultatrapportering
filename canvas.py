@@ -9,6 +9,17 @@ g_grading_schemes = {}
 g_access_token = -1
 
 
+try:
+	fh = open('hemlig-nyckel.txt', 'r')
+	g_access_token = fh.read().strip()
+	fh.close()
+
+except:
+	print('misslyckades med att läsa in den hemliga nyckeln')
+	print('generera med nyckelskapare.py')
+	sys.exit(1)
+
+
 class Course:
 	def __init__(self, course):
 		self.id = course['id']
@@ -122,7 +133,7 @@ def get_list(url):
 		if '?' in url: url = url.replace('?', '?per_page=100&')
 		else: url += '?per_page=100'
 		
-		response_this = requests.get(url = url, headers = { 'Authorization': 'Bearer ' + get_access_token() })
+		response_this = requests.get(url = url, headers = { 'Authorization': 'Bearer ' + g_access_token })
 		response_list = response_this.json()
 		
 		if type(response_list) is not list: return response_list
@@ -140,34 +151,19 @@ def get_list(url):
 
 
 def get_object(url):
-	return requests.get(url = g_base + url, headers = { 'Authorization': 'Bearer ' + get_access_token() }).json()
+	return requests.get(url = g_base + url, headers = { 'Authorization': 'Bearer ' + g_access_token }).json()
 
 
 def put(url, data):
-	return requests.put(url = g_base + url, headers = { 'Authorization': 'Bearer ' + get_access_token() }, data = data).json()
+	return requests.put(url = g_base + url, headers = { 'Authorization': 'Bearer ' + g_access_token }, data = data).json()
 
 
 def post(url, data):
-	return requests.post(url = g_base + url, headers = { 'Authorization': 'Bearer ' + get_access_token() }, data = data).json()
+	return requests.post(url = g_base + url, headers = { 'Authorization': 'Bearer ' + g_access_token }, data = data).json()
 
 
 def delete(url):
-	return requests.delete(url = g_base + url, headers = { 'Authorization': 'Bearer ' + get_access_token() }).json()
-
-
-def get_access_token():
-	global g_access_token
-	
-	if g_access_token == -1:
-		try:
-			fh = open('hemlig-nyckel.txt', 'r')
-			g_access_token = fh.read().strip()
-			fh.close()
-			
-		except:
-			g_access_token = None
-	
-	return g_access_token
+	return requests.delete(url = g_base + url, headers = { 'Authorization': 'Bearer ' + g_access_token }).json()
 
 
 # Hittar kurser som användaren har någon annan roll än student i. Om en sökterm

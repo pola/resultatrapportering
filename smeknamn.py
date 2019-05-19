@@ -2,13 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from canvas import get_access_token, get_courses, get_list, put, delete
-
-
-if get_access_token() is None:
-	print('misslyckades med att läsa in den hemliga nyckeln')
-	print('generera med nyckelskapare.py')
-	sys.exit(1)
+from canvas import get_courses, get_list, put, delete
 
 
 def set_nickname(course):

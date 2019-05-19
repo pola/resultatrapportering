@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys, dateutil.parser
-from canvas import Course, Assignment, Student, get_access_token, get_courses, get_list, put, nice_grade
+from canvas import Course, Assignment, Student, get_courses, get_list, put, nice_grade
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
@@ -267,11 +267,6 @@ if len(sys.argv) < 2:
 	run_instructions()
 	sys.exit(1)
 
-
-if get_access_token() is None:
-	print('misslyckades med att läsa in den hemliga nyckeln')
-	print('generera med nyckelskapare.py')
-	sys.exit(1)
 
 parse_commandline_options()
 

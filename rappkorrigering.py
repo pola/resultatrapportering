@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys
-from canvas import get_access_token, get_list, get_object, put, post
+from canvas import get_list, get_object, put, post
 
 if len(sys.argv) != 2:
 	print('kör så här: rappkorrigering.py <kurs-ID>')
@@ -13,13 +13,16 @@ try:
 		'name': course['name'],
 		'sis': course['sis_course_id']
 	} for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0 and course['id'] == int(sys.argv[1]))
+
 except:
 	print('hittade inte kursen')
 	sys.exit(1)
 
+
 if not course['sis'].startswith('RAPP_'):
 	print('verkar ej vara en Rapp-importerad kurs')
 	sys.exit(1)
+
 
 existing_grading_standards = get_list('/courses/' + str(course['id']) + '/grading_standards')
 
