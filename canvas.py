@@ -9,6 +9,106 @@ g_grading_schemes = {}
 g_access_token = -1
 
 
+class Course:
+	def __init__(self, course):
+		self.id = course['id']
+		self.name = course['name']
+		self.name_original = course['original_name'] if 'original_name' in course else None
+		self.code = course['course_code'][0:6]
+		self.date_start = course['start_at'][0:10]
+		self.__assignments = None
+	
+	def get_assignments(self):
+		if self.__assignments is None:
+			assignments = get_list('/courses/' + str(self.id) + '/assignments')
+			
+			if 'errors' in assignments:
+				print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
+				print(assignments['errors'])
+				sys.exit(1)
+			
+			self.__assignments = []
+			
+			for assignment in assignments:
+				if not assignment['published']: continue
+				if assignment['grading_type'] not in ['pass_fail', 'points', 'letter_grade']: continue
+				
+				if assignment['grading_standard_id'] is not None: grading_scheme = self.get_grading_scheme(assignment['grading_standard_id'])
+				else: grading_scheme = None
+				
+				grades_affect_group = not assignment['grade_group_students_individually'] and assignment['group_category_id'] is not None
+				
+				self.__assignments.append(Assignment(self, assignment['id'], assignment['name'], assignment['grading_type'], grading_scheme, grades_affect_group))
+		
+		return self.__assignments
+	
+	def get_grading_scheme(self, id):
+		global g_grading_schemes
+		
+		if id not in g_grading_schemes:
+			grading_standard = get_object('/courses/' + str(self.id) + '/grading_standards/' + str(id))
+			g_grading_schemes[id] = [grade['name'] for grade in grading_standard['grading_scheme']] if 'grading_scheme' in grading_standard else None
+		
+		return g_grading_schemes[id]
+	
+	def __contains__(self, key):
+		return key in self.name or key in self.code
+	
+	def __str__(self):
+		return self.name
+
+
+class Assignment():
+	def __init__(self, course, id, name, grading_type, grading_scheme, grades_affect_group):
+		self.course = course
+		self.id = id
+		self.name = name
+		self.grading_type = grading_type
+		self.grading_scheme = grading_scheme
+		self.grades_affect_group = grades_affect_group
+	
+	def __str__(self):
+		return self.name
+
+
+class Student:
+	def __init__(self, id, name, email_address):
+		self.id = id
+		self.name = name
+		self.email_address = email_address
+		self.courses = []
+		self.__results = {}
+	
+	def get_results(self, course, force_upgrade = False):
+		if course in self.__results and not force_upgrade: return self.__results[course]
+		
+		submissions = get_list('/courses/' + str(course.id) + '/students/submissions?student_ids[]=' + str(self.id))
+		
+		self.__results[course] = {}
+		
+		for submission in submissions:
+			assignment = next(x for x in course.get_assignments() if x.id == submission['assignment_id'])
+			
+			if submission['grade'] is None: continue
+			
+			self.__results[course][assignment] = {
+				'grade': submission['grade'],
+				'date': submission['graded_at']
+			};
+		
+		return self.__results[course]
+	
+	def get_result(self, assignment, force_upgrade = False):
+		current_grades = self.get_results(assignment.course, force_upgrade = force_upgrade)
+		return current_grades[assignment] if assignment in current_grades else {'grade': '-', 'date': None}
+	
+	def __str__(self):
+		return (self.name + ' <' + self.email_address + '>') if self.email_address is not None else self.name
+	
+	def __lt__(self, other):
+		return self.name < other.name
+
+
 # När man hämtar listor från Canvas får man inte alltid alla element, utan bara
 # de på den första "sidan". Den här funktionen hämtar början av en lista och går
 # igen resten av sidorna ända till den har nått slutet. Resultatet sätts ihop
@@ -64,6 +164,15 @@ def get_access_token():
 			g_access_token = None
 	
 	return g_access_token
+
+
+# Hittar kurser som användaren har någon annan roll än student i. Om en sökterm
+# anges returneras endast de kurser som någonstans i namnet eller kurskoden
+# matchar den söktermen.
+def get_courses(search_term = None):
+	all_courses = [Course(course) for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0]
+	
+	return all_courses if search_term is None else [course for course in all_courses if search_term in course]
 
 
 def nice_grade(grade):

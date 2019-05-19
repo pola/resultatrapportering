@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys, dateutil.parser
-from canvas import g_grading_schemes, get_access_token, get_list, get_object, put, nice_grade
+from canvas import Course, Assignment, Student, get_access_token, get_courses, get_list, put, nice_grade
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
 
@@ -16,105 +16,6 @@ from canvas import g_grading_schemes, get_access_token, get_list, get_object, pu
 g_oldgrades = {} # global variable for coloring grades this session 
 g_newgrades= {} # maintains input order of grades
 g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
-
-
-class Course:
-	def __init__(self, id, name, code, date_start):
-		self.id = id
-		self.name = name
-		self.code = code
-		self.date_start = date_start
-		self.__assignments = None
-	
-	def get_assignments(self):
-		if self.__assignments is None:
-			assignments = get_list('/courses/' + str(self.id) + '/assignments')
-			
-			if 'errors' in assignments:
-				print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
-				print(assignments['errors'])
-				sys.exit(1)
-			
-			self.__assignments = []
-			
-			for assignment in assignments:
-				if not assignment['published']: continue
-				if assignment['grading_type'] not in ['pass_fail', 'points', 'letter_grade']: continue
-				
-				if assignment['grading_standard_id'] is not None: grading_scheme = self.get_grading_scheme(assignment['grading_standard_id'])
-				else: grading_scheme = None
-				
-				grades_affect_group = not assignment['grade_group_students_individually'] and assignment['group_category_id'] is not None
-				
-				self.__assignments.append(Assignment(self, assignment['id'], assignment['name'], assignment['grading_type'], grading_scheme, grades_affect_group))
-		
-		return self.__assignments
-	
-	def get_grading_scheme(self, id):
-		global g_grading_schemes
-		
-		if id not in g_grading_schemes:
-			grading_standard = get_object('/courses/' + str(self.id) + '/grading_standards/' + str(id))
-			g_grading_schemes[id] = [grade['name'] for grade in grading_standard['grading_scheme']] if 'grading_scheme' in grading_standard else None
-		
-		return g_grading_schemes[id]
-	
-	def __contains__(self, key):
-		return key in self.name or key in self.code
-	
-	def __str__(self):
-		return self.name
-
-
-class Assignment():
-	def __init__(self, course, id, name, grading_type, grading_scheme, grades_affect_group):
-		self.course = course
-		self.id = id
-		self.name = name
-		self.grading_type = grading_type
-		self.grading_scheme = grading_scheme
-		self.grades_affect_group = grades_affect_group
-	
-	def __str__(self):
-		return self.name
-
-
-class Student:
-	def __init__(self, id, name, email_address):
-		self.id = id
-		self.name = name
-		self.email_address = email_address
-		self.courses = []
-		self.__results = {}
-	
-	def get_results(self, course, force_upgrade = False):
-		if course in self.__results and not force_upgrade: return self.__results[course]
-		
-		submissions = get_list('/courses/' + str(course.id) + '/students/submissions?student_ids[]=' + str(self.id))
-		
-		self.__results[course] = {}
-		
-		for submission in submissions:
-			assignment = next(x for x in course.get_assignments() if x.id == submission['assignment_id'])
-			
-			if submission['grade'] is None: continue
-			
-			self.__results[course][assignment] = {
-				'grade': submission['grade'],
-				'date': submission['graded_at']
-			};
-		
-		return self.__results[course]
-	
-	def get_result(self, assignment, force_upgrade = False):
-		current_grades = self.get_results(assignment.course, force_upgrade = force_upgrade)
-		return current_grades[assignment] if assignment in current_grades else {'grade': '-', 'date': None}
-	
-	def __str__(self):
-		return (self.name + ' <' + self.email_address + '>') if self.email_address is not None else self.name
-	
-	def __lt__(self, other):
-		return self.name < other.name
 
 
 ###############################################################################
@@ -374,10 +275,7 @@ if get_access_token() is None:
 
 parse_commandline_options()
 
-all_courses = [Course(course['id'], course['name'], course['course_code'], course['start_at'][0:10]) for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0]
-
-course_term = sys.argv[1]
-courses = [course for course in all_courses if (course_term in course)]
+courses = get_courses(sys.argv[1])
 
 if len(courses) == 0:
 	print('hittade ingen kurs som matchade "' + kurs + '"')
