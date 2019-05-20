@@ -28,6 +28,15 @@ class Course:
 		self.code = course['course_code'][0:6]
 		self.date_start = course['start_at'][0:10]
 		self.__assignments = None
+		self.__students = None
+	
+	def get_students(self):
+		if self.__students is None:
+			course_students = get_list('/courses/' + str(self.id) + '/users?enrollment_type[]=student')
+			
+			self.__students = [Student(course_student) for course_student in course_students]
+		
+		return self.__students
 	
 	def get_assignments(self):
 		if self.__assignments is None:
