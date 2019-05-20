@@ -83,10 +83,10 @@ class Assignment():
 
 
 class Student:
-	def __init__(self, id, name, email_address):
-		self.id = id
-		self.name = name
-		self.email_address = email_address
+	def __init__(self, student):
+		self.id = student['id']
+		self.name = student['name']
+		self.email_address = student['login_id'] if 'login_id' in student else None
 		self.courses = []
 		self.__results = {}
 	

@@ -308,7 +308,7 @@ while True:
 		
 		for course_student in course_students:
 			if course_student['id'] not in students:
-				students[course_student['id']] = Student(course_student['id'], course_student['name'], course_student['login_id'] if 'login_id' in course_student else None)
+				students[course_student['id']] = Student(course_student)
 			
 			students[course_student['id']].courses.append(course)
 	
