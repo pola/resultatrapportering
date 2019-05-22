@@ -55,10 +55,13 @@ def read_cache(course, include_grades = True):
 		print('läser in resultat...')
 		results = get_list('/courses/' + str(course.id) + '/students/submissions?student_ids[]=all')
 		
+		assignments_with_points = set([a.id for a in assignments if a.grading_type == 'points'])
+		
 		grades = defaultdict(lambda: defaultdict(lambda: None))
 		
 		for result in [x for x in results if x['grade'] is not None]:
-			grades[result['user_id']][result['assignment_id']] = result['grade']
+			grade = int(result['grade']) if result['assignment_id'] in assignments_with_points else result['grade']
+			grades[result['user_id']][result['assignment_id']] = grade
 	
 	else:
 		grades = None
