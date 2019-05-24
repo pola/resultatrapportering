@@ -184,10 +184,9 @@ def get_courses(search_term = None):
 	return all_courses if search_term is None else [course for course in all_courses if search_term in course]
 
 
-def nice_grade(grade):
+def nice_grade(grade, force_string = True):
 	if grade is None: return '-'
-	
-	grade = str(grade)
+	if force_string: grade = str(grade)
 	
 	if grade == '' : return '-'
 	if grade == 'incomplete': return 'F'

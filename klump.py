@@ -1,9 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import sys, openpyxl, datetime
+import sys, openpyxl, datetime, re
 from collections import defaultdict
-from canvas import Course, Assignment, Student, get_courses, get_list, get_object, put, nice_grade
-from pprint import pprint
+from canvas import get_courses, get_list, get_object, post, nice_grade
 
 
 def grade2api(grade, assignment):
@@ -48,6 +47,8 @@ def read_cache(course, include_grades = True):
 	print('läser in uppgifter...')
 	assignments = course.get_assignments()
 	
+	assignments_with_points = set([a.id for a in assignments if a.grading_type == 'points'])
+	
 	print('läser in studenter...')
 	students = course.get_students()
 	
@@ -55,20 +56,17 @@ def read_cache(course, include_grades = True):
 		print('läser in resultat...')
 		results = get_list('/courses/' + str(course.id) + '/students/submissions?student_ids[]=all')
 		
-		assignments_with_points = set([a.id for a in assignments if a.grading_type == 'points'])
-		
 		grades = defaultdict(lambda: defaultdict(lambda: None))
 		
 		for result in [x for x in results if x['grade'] is not None]:
-			grade = int(result['grade']) if result['assignment_id'] in assignments_with_points else result['grade']
-			grades[result['user_id']][result['assignment_id']] = grade
+			grades[result['user_id']][result['assignment_id']] = nice_grade(result['grade'], False)
 	
 	else:
 		grades = None
 	
 	print()
 	
-	return (assignments, students, grades)
+	return (assignments, assignments_with_points, students, grades)
 
 
 argc = len(sys.argv)
@@ -127,7 +125,7 @@ if argc == 2:
 		print('inget filnamn angivet, avslutar')
 		sys.exit(1)
 	
-	(assignments, students, grades) = read_cache(course)
+	(assignments, assignments_with_points, students, grades) = read_cache(course)
 	
 	if file_name == '-':
 		now = datetime.datetime.now()
@@ -142,7 +140,7 @@ if argc == 2:
 	ws.append(header)
 	
 	for student in students:
-		row = [student.name, student.email_address, student.id] + [grades[student.id][a.id] for a in assignments]
+		row = [student.name, student.email_address, student.id] + [int(grades[student.id][a.id]) if a.id in assignments_with_points and grades[student.id][a.id] is not None else grades[student.id][a.id] for a in assignments]
 		ws.append(row)
 	
 	wb.save(file_name)
@@ -151,182 +149,219 @@ if argc == 2:
 
 
 if argc == 3:
-	print('ej implementerat, avslutar')
-	sys.exit(1)
-	
-	# TODO: läs från excel med https://openpyxl.readthedocs.io/en/stable/
 	try:
-		fh = open(sys.argv[2], 'r')
-		lines = fh.readlines()
-		fh.close()
+		wb = openpyxl.load_workbook(sys.argv[2])
 
 	except:
 		print('kunde ej öppna angiven fil')
 		sys.exit(1)
-
-
-	columns_raw = lines[0].split('\t')
-	lines.pop(0)
-
-	student_column_id = None
+	
+	
+	if len(wb.sheetnames) != 1:
+		print('kalkylbladet måste ha precis ett blad, hittade ' + str(len(wb.sheetnames)))
+		sys.exit(1)
+	
+	(assignments, assignments_with_points, students, grades) = read_cache(course)
+	
+	ws = wb.active
+	
+	student_ids = set([x.id for x in students])
+	
+	student_column = None
 	columns = {}
 
-	line_length = len(columns_raw)
-	i = 0
-
-	while i < len(columns_raw):
-		if columns_raw[i] == 'ID':
-			if student_column_id is not None:
+	for cell in ws[1]:
+		if cell.value is None: continue
+		
+		if cell.value == 'ID':
+			if student_column is not None:
 				print('det finns flera kolumner med ID')
 				sys.exit(1)
 			
-			student_column_id = i
+			student_column = cell.column - 1
 		
 		else:
-			assignment_id = re.search('\(([0-9]+)\)$', columns_raw[i])
+			assignment_id = re.search('\(([0-9]+)\)$', cell.value)
 			
 			if assignment_id is not None:
 				assignment_id = int(assignment_id.group(1))
+				assignment = next((x for x in assignments if x.id == assignment_id), None)
 				
-				if assignment_id in columns.values():
+				if assignment is None:
+					print('okänd uppgift ' + str(assignment_id))
+					sys.exit(1)
+				
+				if assignment in columns.values():
 					print('det finns flera kolumner som avser uppgift ' + str(assignment_id))
 					sys.exit(1)
 				
-				columns[i] = assignment_id
+				columns[cell.column - 1] = assignment
+	
+	
+	# läs in betyg från kalkylbladet
+	file_grades = defaultdict(lambda: defaultdict(lambda: None))
+	
+	for cell in ws['A']:
+		if cell.row == 1: continue
 		
-		i += 1
-
-	tasks = []
-	used_students = {}
-	i = -1
-
-	while i < len(lines) - 1:
-		i += 1
-		line = lines[i].split('\t')
+		student_id = ws[cell.row][student_column].value
 		
-		if len(line) == 1: continue
-		
-		if len(line) != line_length:
-			print('rad ' + str(i + 2) + ' har ' + str(len(line)) + ' kolumner, och inte ' + str(line_length) + ' kolumner')
-			sys.exit(1)
-		
-		student_id = line[student_column_id].strip()
-		
-		if len(student_id) == 0:
-			print('rad ' + str(i + 2) + ' ignoreras eftersom den saknar student-ID')
+		if not isinstance(student_id, int):
+			print('rad ' + str(cell.row) + ' ignoreras eftersom den saknar student-ID')
 			continue
 		
-		try:
-			student_id = int(student_id)
-		
-		except:
-			print('rad ' + str(i + 2) + ' har ett ogiltigt student-ID')
+		if student_id in file_grades:
+			print('rad ' + str(cell.row) + ' har en student som har förekommit på en tidigare rad')
 			sys.exit(1)
 		
-		if student_id in used_students:
-			print('rad ' + str(i + 2) + ' har en student som har förekommit på en tidigare rad')
+		if student_id not in student_ids:
+			print('rad ' + str(cell.row) + ' har en student som inte hittades i kursen')
 			sys.exit(1)
 		
-		used_students[student_id] = i + 2
-		
-		for index in columns:
-			grade = line[index].strip()
-			if len(grade) == 0: continue
+		for assignment_column in columns:
+			grade = ws[cell.row][assignment_column].value
 			
-			tasks.append({
-				'line': i + 2,
-				'student_id': student_id,
-				'assignment_id': columns[index],
-				'grade': grade
-			})
-
-	course = courses[sys.argv[1]]
-
-	print('läser in uppgifter')
-
-	assignments = get_list('/courses/' + str(course) + '/assignments')
-
-	if 'errors' in assignments:
-		print('fel vid inläsning av uppgifter -- kanske fel API-nyckel eller fel kurs-ID?')
-		print(assignments['errors'])
+			if grade is None: continue
+			if isinstance(grade, int): grade = str(grade)
+			
+			file_grades[student_id][columns[assignment_column].id] = grade
+	
+	wb.close()
+	
+	
+	# hitta differensen
+	difference = defaultdict(lambda: defaultdict(lambda: None))
+	
+	for s in grades:
+		for a in columns.values():
+			a = a.id
+			
+			grade_canvas = grades[s][a]
+			grade_file = file_grades[s][a]
+			
+			if grade_canvas is None: grade_canvas = '-'
+			if grade_file is None: continue
+			
+			if grade_canvas != grade_file:
+				difference[s][a] = (grade_canvas, file_grades[s][a])
+	
+	for s in file_grades:
+		for a in columns.values():
+			a = a.id
+			
+			grade_canvas = grades[s][a]
+			grade_file = file_grades[s][a]
+			
+			if grade_canvas is None: grade_canvas = '-'
+			if grade_file is None: continue
+			
+			if grade_canvas != grade_file:
+				difference[s][a] = (grade_canvas, file_grades[s][a])
+	
+	if len(difference) == 0:
+		print('ingen skillnad mellan kalkylbladet och Canvas')
 		sys.exit(1)
-
-
-	assignments = [assignment for assignment in assignments if assignment['published'] and (assignment['grading_type'] == 'pass_fail' or assignment['grading_type'] == 'points' or assignment['grading_type'] == 'letter_grade')]
-
-	grading_standards = {}
-
+	
+	
+	touched_assignments = []
+	
+	print('antal resultat  uppgift')
+	
 	for assignment in assignments:
-		if assignment['grading_standard_id'] is not None:
-			gsi = assignment['grading_standard_id']
+		if assignment not in columns.values():
+			changes = '-'
+		
+		else:
+			changes = 0
 			
-			if gsi not in grading_standards:
-				grading_standards[gsi] = [grade['name'] for grade in get_object('/courses/' + str(course) + '/grading_standards/' + str(gsi))['grading_scheme']]
+			for s in difference:
+				if assignment.id in difference[s]: changes += 1
+		
+			if changes != 0: touched_assignments.append(assignment)
+		
+		print('{0: >14}'.format(str(changes)), end = '  ')
+		print(str(assignment))
+	
+	
+	wb = openpyxl.Workbook()
+	ws = wb.active
+	
+	header = ['namn', 'e-postadress', 'ID']
+	
+	for a in touched_assignments:
+		header.append('')
+		header.append(a.name + ' (i Canvas)')
+		header.append(a.name + ' (' + str(a.id) + ')')
+	
+	ws.append(header)
+	
+	for s in students:
+		if s.id not in difference: continue
+		row = [s.name, s.email_address, s.id]
+		
+		for a in touched_assignments:
+			row.append('')
 			
-			assignment['grading_scheme'] = grading_standards[gsi]
-
-	if len(assignments) == 0:
-		print('hittade inga uppgifter')
-		sys.exit(1)
-
-
+			c = difference[s.id][a.id]
+			
+			if c is None:
+				row.append('')
+				row.append('')
+			
+			else:
+				row.append(c[0])
+				row.append(c[1])
+		
+		ws.append(row)
+	
+	print()
+	
 	assignments_dict = {}
-	for a in assignments: assignments_dict[a['id']] = a
-	assignments = assignments_dict
-
-
-	print('läser in studenter')
-
-	students = get_list('/courses/' + str(course) + '/users?enrollment_type[]=student')
-
-	if len(students) == 0:
-		print('hittade inga studenter')
-		sys.exit(1)
-
-	for assignment_id in columns.values():
-		if assignment_id not in assignments:
-			print('okänt uppgifts-ID ' + str(assignment_id) + ' i tabellhuvudet')
-			sys.exit(1)
-
-	for student_id in used_students:
-		if student_id not in [s['id'] for s in students]:
-			print('okänt student-ID ' + str(student_id) + ' på rad ' + str(used_students[student_id]))
-			sys.exit(1)
-
+	for a in assignments: assignments_dict[a.id] = a
+	
 	error = False
-
-	for task in tasks:
-		grade = grade2api(task['grade'], assignments[task['assignment_id']])
-		
-		if grade is None:
-			print('felaktigt resultat \'' + task['grade'] + '\' på rad ' + str(task['line']))
-			error = True
-		
-		task['grade'] = grade
-
+	
+	for s in difference:
+		for a in difference[s]:
+			grade = grade2api(difference[s][a][1], assignments_dict[a])
+			
+			if grade is None:
+				student = next(x for x in students if x.id == s)
+				print('felaktigt resultat \'' + difference[s][a][1] + '\' för \'' + str(student) + '\' på \'' + str(assignment) + '\'')
+				error = True
+			
+			difference[s][a] = grade
+	
 	if error: sys.exit(1)
-
-	print('skriv \'OK\' för att rapportera in ' + str(len(tasks)) + ' resultat')
-
+	
+	try:
+		wb.save('skillnad.xlsx')
+		print('skillnaden har sparats i skillnad.xlsx -- skriv \'OK\' för att rapportera in resultaten')
+	
+	except:
+		print('skillnaden kunde inte sparas till skillnad.xlsx -- skriv \'OK\' för att rapportera in resultaten ändå')
+	
 	command = input('>> ')
 
 	if command.lower() != 'ok':
 		print('avbryter och avslutar')
 		sys.exit(1)
 
-	for assignment in assignments:
-		assignment = assignments[assignment]
+	for a in assignments:
 		data = {}
 		
-		for task in tasks:
-			if task['assignment_id'] != assignment['id']: continue
-			data['grade_data[' + str(task['student_id']) + '][posted_grade]'] = task['grade']
+		for s in difference:
+			grade = difference[s][a.id]
+			
+			if grade is None: continue
+			
+			data['grade_data[' + str(s) + '][posted_grade]'] = grade
 		
 		if len(data) == 0: continue
-
-		print('skriver ' + str(len(data)) + ' resultat till ' + assignment['name'])
 		
-		result = post('/courses/' + str(course) + '/assignments/' + str(assignment['id']) + '/submissions/update_grades', data)
+		print('skriver ' + str(len(data)) + ' resultat för \'' + str(a) + '\'')
+		
+		result = post('/courses/' + str(course.id) + '/assignments/' + str(a.id) + '/submissions/update_grades', data)
 		
 		if 'errors' in result:
 			print('fel från Canvas:')
