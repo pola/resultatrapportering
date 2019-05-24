@@ -29,26 +29,23 @@ Det går alltid att gå tillbaka till föregående steg genom att lämna inmatni
 ### Begränsningar
 Just nu finns det endast stöd för uppgifter som har poäng, godkänt/icke godkänt eller graderade resultat (typiskt sett A-F) som betygsskala. Skriptet varnar om man är på väg att sätta ett resultat på en gruppuppgift där alla i gruppen får samma resultat, men man får inte reda på vilka andra studenter som är på väg att få det resultatet.
 
-## klump.py
+## flera.py
 Det här skriptet kan användas för att rapportera in resultat för många studenter och på en gång, från en resultatfil.
 
 Skriptet körs så här:  
-``$ klump.py <kursnamn> <sökväg till resultatfil>``
+``$ flera.py <kursnamn> <sökväg till resultatfil>``
 
-### Format för resultatfil
-Resultatfilen ska innehålla en rad med kolumnhuvuden följt av en rad per student. I den första raden ska det alltid framgå vilken kolumn som innehåller studenternas ID-nummer. Den raden ska även innehålla kolumnhuvuden för de uppgifter som skriptet ska rapportera in resultat för. Kolumenhuvudet med studenternas ID-nummer ska heta `ID` och kolumnhuvudena med uppgifterna ska sluta med `(<ID-nummer>)`, där `<ID-nummer>` är respektive uppgifts ID-nummer i Canvas. För att hitta ID-numret för en uppgift, gå in på uppgiften i Canvas och titta i webbläsarens adressfält.
+Vid en körning kontrolleras innehållet i resultatfilen mot vad som står i Canvas, och en fil `skillnad.xlsx` skapas med skillnaden. Det går att ändra i den filen, men för att importera ändringarna (i stället för den ursprungliga resultatfilen), får man avbryta programmet och köra det på nytt, med `skillnad.xlsx` som andra argument:  
+``$ flera.py <kursnamn> skillnad.xlsx``
 
-Kolumnerna separeras med TAB (`\t`). Det måste vara lika många kolumner i varje rad, men det kan finnas kolumner som varken avser studenter eller uppgifter. Här är ett exempel på en resultatfil:
-```
-namn	ID	uppg1 (1234)	uppg2 (5678)	uppg3	slutbetyg (9123)
-Per Silja	456	E	E	C	D
-Tom At	789	E	D	-	E
-Per On	876			C	C
-```
-I exemplet ovan finns det tre studenter. Resultat kommer rapporteras in för `uppg1`, `uppg2` och `slutbetyg`. Den tredje uppgiften, `uppg3`, saknar ID-nummer och kommer ignoreras. Även den första kolumnen, `namn`, kommer ignoreras. Varje resultat kan vara något från respektive uppgifts betygsskala, eller `-` för att rensa ett tidigare inlagt resultat. Om en cell är tom, som hos den sista studenten i resultatfilen ovan, kommer skriptet inte ändra det resultatet alls.
+### Format för resultatfilen
+Resultatfilen ska vara ett kalkylblad på XLSX-format ("Excel-format") där den första raden innehåller kolumnhuvuden och övriga rader är en per student. I den första raden ska det alltid framgå vilken kolumn som innehåller studenternas ID-nummer. Den raden ska även innehålla kolumnhuvuden för de uppgifter som skriptet ska rapportera in resultat för. Kolumenhuvudet med studenternas ID-nummer ska heta `ID` och kolumnhuvudena med uppgifterna ska sluta med `(<ID-nummer>)`, där `<ID-nummer>` är respektive uppgifts ID-nummer i Canvas. För att hitta ID-numret för en uppgift, gå in på uppgiften i Canvas och titta i webbläsarens adressfält.
+
+En korrekt formaterat kalkylblad kan fås genom att köra skriptet utan sökväg till en resultatfil:  
+``$ flera.py <kursnamn>``
 
 ### Hämta resultatfil från Canvas
-Gå in på omdömesmatrisen i Canvas och exportera den som en CSV-fil för att få ett underlag som kan fungera som resultatfil till skriptet. Öppna filen i ett kalkylprogram. För att skapa en resultatfil som skriptet kan läsa in, spara filen som en CSV-fil med TAB som kolumnseparator. Se till att _inte_ ha med några andra tecken runt kolumner, så som `"` eller `'`.
+Gå in på omdömesmatrisen i Canvas och exportera den som en CSV-fil för att få ett underlag som kan fungera som resultatfil till skriptet. Öppna filen i ett kalkylprogram och spara den på XLSX-format.
 
 Canvas har en möjlighet att importera en CSV-fil som tidigara har exporterats, och på så sätt uppdatera de ändrade betygen. Det kan tyckas göra det här skriptet onödigt, men erfarnheten har visat att Canvas funktion för att importera CSV-filer inte fungerar tillfredsställande. Webbläsaren skickar ett HTTP-anrop per resultat att ändra, sekventiellt. Det sker i bakgrunden, när man har importerat en fil, och som användare får man ingen återkoppling på hur det går om man inte öppnar webbläsarkonsolen och tittar på nätverkstrafiken. Dessutom hoppar den över studenter långt ned i omdömesmatrisen om för stora kurser, vilket gör att vissa resultat inte rapporteras in alls. Ytterligare ett problem är avsaknaden av felhantering; importeringsfunktionen i Canvas ger inget meddelande om ett resultat är felaktigt angivet eller om en student inte är inlagd i kursen. Det här skriptet löser de problemen genom att inte avslutas förrän alla resultat är inrapporterade och genom att vara generös med att skriva ut eventuella felmeddelanden.
 
