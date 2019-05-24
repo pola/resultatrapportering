@@ -43,7 +43,7 @@ def grade2api(grade, assignment):
 		return None
 
 
-def read_cache(course, include_grades = True):
+def read_cache(course):
 	print('läser in uppgifter...')
 	assignments = course.get_assignments()
 	
@@ -52,21 +52,27 @@ def read_cache(course, include_grades = True):
 	print('läser in studenter...')
 	students = course.get_students()
 	
-	if include_grades:
-		print('läser in resultat...')
-		results = get_list('/courses/' + str(course.id) + '/students/submissions?student_ids[]=all')
-		
-		grades = defaultdict(lambda: defaultdict(lambda: None))
-		
-		for result in [x for x in results if x['grade'] is not None]:
-			grades[result['user_id']][result['assignment_id']] = nice_grade(result['grade'], False)
+	return (assignments, assignments_with_points, students)
+
+
+def read_grades(filter_assignments = None):
+	print('läser in resultat från Canvas...')
 	
-	else:
-		grades = None
+	f = ''
+	
+	if filter_assignments is not None:
+		for a in filter_assignments: f += '&assignment_ids[]=' + str(a.id)
+
+	results = get_list('/courses/' + str(course.id) + '/students/submissions?student_ids[]=all' + f)
+	
+	grades = defaultdict(lambda: defaultdict(lambda: None))
+	
+	for result in [x for x in results if x['grade'] is not None]:
+		grades[result['user_id']][result['assignment_id']] = nice_grade(result['grade'], False)
 	
 	print()
 	
-	return (assignments, assignments_with_points, students, grades)
+	return grades
 
 
 argc = len(sys.argv)
@@ -125,7 +131,8 @@ if argc == 2:
 		print('inget filnamn angivet, avslutar')
 		sys.exit(1)
 	
-	(assignments, assignments_with_points, students, grades) = read_cache(course)
+	(assignments, assignments_with_points, students) = read_cache(course)
+	grades = read_grades()
 	
 	if file_name == '-':
 		now = datetime.datetime.now()
@@ -161,7 +168,7 @@ if argc == 3:
 		print('kalkylbladet måste ha precis ett blad, hittade ' + str(len(wb.sheetnames)))
 		sys.exit(1)
 	
-	(assignments, assignments_with_points, students, grades) = read_cache(course)
+	(assignments, assignments_with_points, students) = read_cache(course)
 	
 	ws = wb.active
 	
@@ -196,6 +203,9 @@ if argc == 3:
 					sys.exit(1)
 				
 				columns[cell.column - 1] = assignment
+	
+	
+	grades = read_grades(list(columns.values()))
 	
 	
 	# läs in betyg från kalkylbladet
@@ -323,6 +333,8 @@ if argc == 3:
 	
 	for s in difference:
 		for a in difference[s]:
+			if difference[s][a] is None: continue
+			
 			grade = grade2api(difference[s][a][1], assignments_dict[a])
 			
 			if grade is None:
