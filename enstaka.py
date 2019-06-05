@@ -273,7 +273,7 @@ parse_commandline_options()
 courses = get_courses(sys.argv[1])
 
 if len(courses) == 0:
-	print('hittade ingen kurs som matchade "' + kurs + '"')
+	print('hittade ej angiven kurs')
 	sys.exit(1)
 
 
