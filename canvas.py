@@ -2,7 +2,7 @@
 
 # Den här filen innehåller hjälpfunktioner som används av skripten.
 
-import requests, sys, re, dateutil.parser
+import requests, sys, re # , dateutil.parser
 
 g_base = 'https://kth.instructure.com/api/v1'
 g_grading_schemes = {}
