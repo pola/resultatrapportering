@@ -33,9 +33,11 @@ Just nu finns det endast stöd för uppgifter som har poäng, godkänt/icke godk
 Det här skriptet kan användas för att rapportera in resultat för många studenter och på en gång, från en resultatfil.
 
 Skriptet körs så här:  
-``$ flera.py <kursnamn> <sökväg till resultatfil>``
+``$ flera.py <kursnamn> [<sökväg till resultatfil>]``
 
-Vid en körning kontrolleras innehållet i resultatfilen mot vad som står i Canvas, och en fil `skillnad.xlsx` skapas med skillnaden. Det går att ändra i den filen, men för att importera ändringarna (i stället för den ursprungliga resultatfilen), får man avbryta programmet och köra det på nytt, med `skillnad.xlsx` som andra argument:  
+Om man anger en sökväg till en resultatfil kommer skriptet importera de resultaten till Canvas, och gör man det inte kommer skriptet i stället att exportera befintliga resultat från Canvas till en fil.
+
+Vid importering kontrolleras innehållet i den angivna resultatfilen mot vad som står i Canvas, och en fil `skillnad.xlsx` skapas med skillnaden. Det går att ändra i den filen, men för att importera ändringarna (i stället för den ursprungliga resultatfilen), får man avbryta programmet och köra det på nytt, med `skillnad.xlsx` som andra argument:  
 ``$ flera.py <kursnamn> skillnad.xlsx``
 
 ### Format för resultatfilen
