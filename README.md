@@ -1,4 +1,4 @@
-# betygsrapportering
+# resultatrapportering
 Katalogen innehåller olika skript för att rapportera in resultat på uppgifter i kurser i Canvas på KTH.
 
 ## Kom igång
