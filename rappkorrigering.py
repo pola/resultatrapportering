@@ -7,14 +7,22 @@ if len(sys.argv) != 2:
 	print('kör så här: rappkorrigering.py <kurs-ID>')
 	sys.exit(1)
 
+
 try:
-	course = next({
-		'id': course['id'],
-		'name': course['name'],
-		'sis': course['sis_course_id']
-	} for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0 and course['id'] == int(sys.argv[1]))
+	canvas_id = int(sys.argv[1])
 
 except:
+	print('ogiltigt kurs-ID')
+	sys.exit(1)
+
+
+course = next(({
+	'id': course['id'],
+	'name': course['name'],
+	'sis': course['sis_course_id']
+} for course in get_list('/courses') if len([x for x in course['enrollments'] if x['type'] != 'student']) > 0 and course['id'] == canvas_id), None)
+
+if course is None:
 	print('hittade inte kursen')
 	sys.exit(1)
 

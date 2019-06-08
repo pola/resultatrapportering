@@ -58,3 +58,8 @@ När skriptet körs kommer det ske extensiva kontroller av resultatfil. Bland an
 * Ingen uppgift förekommer flera gånger, i flera kolumnhuvuden.
 * Ingen student förekommer flera gånger, i flera rader.
 * De angivna resultaten är giltiga för uppgiften; bokstavsbetyg från uppgiftens betygsskala, poäng, `-` eller ingenting.
+
+## rappkorrigering.py
+I slutet av 2018 la KTH upp kursrum i Canvas som motsvarade kursomgångarna i det numera nedstängda Rapp. Graderade resultat använder sig av betygsskalor som ligger utanför kursen, vilket gör att de inte går att nå genom API:et, och därmed inte genom enstaka.py och flera.py ovan. Genom att köra  
+``$ rappkorrigering.py <kurs-ID från Canvas>``  
+åtgärdas det genom att kopior på betygsskalorna skapas lokalt på varje enskilt kursrum. Inga resultat ändras till följd av detta.
