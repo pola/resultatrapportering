@@ -9,8 +9,6 @@ content_types = {
 	'text/plain': 'txt'
 }
 
-import pprint
-
 if len(sys.argv) != 3:
 	print('kör så här: inlämningshämtare.py <(del av) kurs-namn> <uppgiftsnamn>')
 	sys.exit(1)
