@@ -204,6 +204,10 @@ if argc == 3:
 				
 				columns[cell.column - 1] = assignment
 	
+	if student_column is None:
+		print('saknar kolumn \'ID\'')
+		sys.exit(1)
+	
 	
 	grades = read_grades(list(columns.values()))
 	
