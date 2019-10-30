@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import sys, dateutil.parser
+import sys, dateutil.parser, threading
 from canvas import Course, Assignment, Student, get_courses, get_list, put, nice_grade
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
@@ -18,6 +18,38 @@ g_newgrades= {} # maintains input order of grades
 g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
 
 
+lock = threading.Lock()
+
+
+def thread_find_students_in_course(course, search_term, students):
+	course_students = get_list('/courses/' + str(course.id) + '/users?enrollment_type[]=student&search_term=' + search_term)
+	
+	if 'errors' in course_students:
+		print('fel från Canvas:')
+		print(error)
+		sys.exit(1)
+	
+	lock.acquire()
+	for course_student in course_students:
+		if course_student['id'] not in students:
+			students[course_student['id']] = Student(course_student)
+		
+		students[course_student['id']].courses.append(course)
+	lock.release()
+
+
+def thread_retrieve_results_in_course(student, course):
+	student.get_results(course)
+
+
+def thread_retrieve_assignments(course, assignments):
+	a = course.get_assignments()
+	
+	lock.acquire()
+	for assignment in a: assignments.append(assignment)
+	lock.release()
+
+
 ###############################################################################
 #
 # choose_assignment
@@ -29,10 +61,15 @@ def choose_assignment(student):
 		auto_choice = -1
 		
 		assignments = []
+		threads = []
 		
 		for course in student.courses:
-			for assignment in course.get_assignments():
-				assignments.append(assignment)
+			threads.append(threading.Thread(target=thread_retrieve_assignments, args=(course, assignments)))
+		
+		for thread in threads: thread.start()
+		for thread in threads: thread.join()
+		
+		assignments.sort()
 		
 		for i, assignment in enumerate(assignments, 1):
 			if auto_choice == -1: auto_choice = i
@@ -62,6 +99,14 @@ def choose_assignment(student):
 			multiple_courses = len(courses) > 1
 			padding = '\t' if multiple_courses else ''
 			previous_course = None
+			
+			threads = []
+			
+			for course in student.courses:
+				threads.append(threading.Thread(target=thread_retrieve_results_in_course, args=(student, course)))
+			
+			for thread in threads: thread.start()
+			for thread in threads: thread.join()
 			
 			print('\nvälj uppgift för ' + str(student) + ':')
 			print(padding + 'index  resultat  datum             uppgift')
@@ -297,20 +342,13 @@ while True:
 		continue
 	
 	students = {}
+	threads = []
 	
 	for course in courses:
-		course_students = get_list('/courses/' + str(course.id) + '/users?enrollment_type[]=student&search_term=' + search_term)
-		
-		if 'errors' in course_students:
-			print('fel från Canvas:')
-			print(error)
-			sys.exit(1)
-		
-		for course_student in course_students:
-			if course_student['id'] not in students:
-				students[course_student['id']] = Student(course_student)
-			
-			students[course_student['id']].courses.append(course)
+		threads.append(threading.Thread(target=thread_find_students_in_course, args=(course, search_term, students)))
+	
+	for thread in threads: thread.start()
+	for thread in threads: thread.join()
 	
 	students = [students[key] for key in students]
 	
@@ -325,6 +363,8 @@ while True:
 	
 	else:
 		print('\nvälj en student (1 .. ' + str(len(students)) + '):')
+		
+		students.sort()
 		
 		i = 1
 		for student in students:

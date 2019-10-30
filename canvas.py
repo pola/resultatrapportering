@@ -76,6 +76,9 @@ class Course:
 	
 	def __str__(self):
 		return self.name
+	
+	def __lt__(self, other):
+		return other.date_start < self.date_start
 
 
 class Assignment():
@@ -89,6 +92,9 @@ class Assignment():
 	
 	def __str__(self):
 		return self.name
+	
+	def __lt__(self, other):
+		return other.course < self.course
 
 
 class Student:
