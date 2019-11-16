@@ -196,7 +196,7 @@ def set_grade(student, assignment, old_grade):
 		
 		print('nuvarande resultat: ' + old_grade)
 		
-		grade = input('>>>> ')
+		grade = input('>>>>> ')
 		
 		if len(grade) == 0:
 			print('avbryter')
