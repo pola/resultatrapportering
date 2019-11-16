@@ -136,7 +136,7 @@ def choose_assignment(student):
 				
 				print(assignment)
 			
-			choice = input('>> ')
+			choice = input('>>>> ')
 			
 			if len(choice) == 0:
 				return
@@ -196,7 +196,7 @@ def set_grade(student, assignment, old_grade):
 		
 		print('nuvarande resultat: ' + old_grade)
 		
-		grade = input('>> ')
+		grade = input('>>>> ')
 		
 		if len(grade) == 0:
 			print('avbryter')
@@ -378,7 +378,7 @@ while True:
 		chosen_student = None
 		
 		while True:
-			index = input('>> ')
+			index = input('>>> ')
 			
 			if len(index) == 0:
 				break
