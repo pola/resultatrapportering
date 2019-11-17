@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import sys, dateutil.parser, threading
+import sys, dateutil.parser, threading, re
 from canvas import Course, Assignment, Student, get_courses, get_list, put, nice_grade
 
 # TODO, dateutil och request finns inte förinstallerat på alla system.
@@ -13,10 +13,10 @@ from canvas import Course, Assignment, Student, get_courses, get_list, put, nice
 # GLOBAL VARIABLES
 #
 
-g_oldgrades = {} # global variable for coloring grades this session 
-g_newgrades= {} # maintains input order of grades
-g_color = True   # TODO göra optional, kolla färgändring fungerar på alla plattformar
-
+g_oldgrades = {}  # global variable for coloring grades this session 
+g_newgrades= {}   # maintains input order of grades
+g_color = True    # reverserar färg på skärmen, kan sättas False med kommandoradsargument --nocolor
+g_filter = None   # filter för att filtrera uppgifter
 
 lock = threading.Lock()
 
@@ -49,12 +49,97 @@ def thread_retrieve_assignments(course, assignments):
 	for assignment in a: assignments.append(assignment)
 	lock.release()
 
+###############################################################################
+#
+# handle_input_options
+#
+# input  - a string that begins with either ? or -
+# filter - a list of regex or a dictionary of item numbers
+#
+# returns filter, a dictionary of item numbers or regex list of assignements
+def handle_input_options( input, filter ):
+	if input[0] == '?':
+		if g_color: print('\033[0;7m', "  Hjälp  ", '\033[0m')
+		else: print("   Hjälp")
+
+		print ("   Programmet låter dig välja student och uppgift och skriver resultatet direkt i canvas")
+		print ("   Du kan i alla lägen avbryta med <enter> tills programmet avslutas")
+		print ()
+		print ("   Följande specialalternativ kan göras (och även skickas som kommandoradsargument)")
+		print ()
+		print ("   ?            - Skriver ut hjälptext")
+		print ("   -n           - Lägger till en eller flera uppgiftsnamn (reguljära uttryck) att filtrera på")
+		print ("   -t           - Filtrerar på uppgiftsnummer iställer för namn, exempel 1-4, 5")
+		print ("                  uppgiftsordningen går att ändra i canvas, t.ex. genom att flytta moduler")
+		print ("   -c           - Nollställer filter och visar alla uppgifter")
+		print ("   Exempel: ")
+		print ("            -t  1,13-15      visar uppgift 1, 13, 14, 15 enligt ordningsföljd i canvas")
+		print ("            -n  lab1 lab2    visar uppgifterna som heter lab1 och lab2")
+		print ("            -n  lab3         visar även uppgiften lab3")
+		print ("            -c               nollställer filter")
+		print ("            -n  LAB.*        visar uppgiftsnamn som börjar på LAB") 
+		print ()
+		if filter == None or len(filter) == 0:
+			print("   För närvarande används inget filter")
+		else:
+			if isinstance(filter, list):
+				print("   Filtrerar följande uppgifter: ", end="")
+				for x in filter:
+					print(x.pattern, end = " ")
+				print()
+			elif isinstance(filter, set):
+				print("   Filtrerar följande uppgiftsnummer i canvas", filter)
+		print()
+			
+	if input[0] == '-':
+		if len(input) > 1:
+			if input[1] in 'uUnN':
+				uppg_rg = input.split()
+				regexlist = []
+				for regex in uppg_rg[1:] :
+					try:
+						p = re.compile(regex)
+						regexlist.append(p)
+					except:
+						print("Felaktigt reguljärt uttryck, '", regex, "', skippar det")
+				if len(regexlist) > 0:
+					if filter == None or isinstance(filter, set) : filter = []
+					print("lade till följande namnfilter: ", end="")
+					for x in regexlist:
+						print(x.pattern, end=" ")
+						filter.append(x)
+					print()
+				else:
+					print("förstod inte vad som menades: ", uppg_rg[1:])
+					
+			elif input[1] in 'iItT':
+				s = input[2:]
+				li = re.findall('(?:(\d+) *?[-:] *?(\d+))|(\d+),?', s)
+				flatlist = [y for sublist in
+					    [
+						    [int(x[2])] if x[0] == '' else list(range(int(x[0]), int(x[1]) + 1))
+						    for x in re.findall('(?:(\d+) *?[:-] *?(\d+))|(\d+),?', s)
+					    ]
+					    for y in sublist] 
+				iterlist = set( flatlist )
+				if len(iterlist) > 0:
+					print("nytt talfilter =", iterlist)
+					filter = iterlist
+				else:
+					print("filter oförändrat, mata in ? för hjälp")
+			elif input[1] in 'cC':
+				print("Nollställer filter")
+				filter = None
+			else:
+				print("Okänt alternativ:", input[0:2], "  ange ? för hjälp")
+			
+	return filter
 
 ###############################################################################
 #
 # choose_assignment
 #
-def choose_assignment(student):
+def choose_assignment(student, filter):
 	fetch_grades = True
 	
 	while True:
@@ -110,8 +195,31 @@ def choose_assignment(student):
 			
 			print('\nvälj uppgift för ' + str(student) + ':')
 			print(padding + 'index  resultat  datum             uppgift')
-			
+
+			allfiltered = True
 			for i, assignment in enumerate(assignments, 1):
+
+				################## filter ########################
+				# 
+				# Filtrerar bort assignments som inte matchar
+				if filter != None:
+					if isinstance(filter, set):
+						if i not in filter:
+							continue
+						else:
+							allfiltered = False
+							
+					elif isinstance(filter, list):
+						matchfound = False
+						for pattern in filter:
+							if pattern.match(str(assignment)):
+								matchfound = True
+								allfiltered = False
+						if not matchfound:
+							continue
+				################## filter ########################
+				
+				
 				if multiple_courses and previous_course != assignment.course:
 					print('\n' + str(assignment.course))
 					previous_course = assignment.course
@@ -135,11 +243,23 @@ def choose_assignment(student):
 				if isincolor: print('\033[0m', end = '')
 				
 				print(assignment)
-			
+				
+			################## filter ########################
+			# Om filtret filtrerat alla uppgifter bör man meddelas
+			if filter != None and allfiltered == True:
+				print("   Alla uppgifter blev bortfiltrerade av filtret: ", end="")
+				if  isinstance(filter, list): print([ x.pattern for x in filter ])
+				else: print([ x for x in filter ])
+				print("   ta bort filtret med -c, ange ? för hjälp")
+				
 			choice = input('>>>> ')
-			
+
 			if len(choice) == 0:
 				return
+			
+			elif choice[0] in "?-":
+				filter = handle_input_options( choice, filter )
+				continue
 			
 			try:
 				choice = int(choice)
@@ -201,6 +321,11 @@ def set_grade(student, assignment, old_grade):
 		if len(grade) == 0:
 			print('avbryter')
 			return
+
+		if grade == '?':
+			print("   Programmet skriver direkt i canvas. Mata in ett resultat enligt betygsskala.")
+			print("   Tryck <enter> för att avbryta")
+			continue
 		
 		if grade == '-':
 			grade = ''
@@ -290,9 +415,12 @@ def entrylist():
 # run_instructions
 # 
 def run_instructions():
-	print('kör så här: enstaka.py <kursnamn>')
+	print ("\nAnge på kommandoraden vilken kurs som ska rapporteras. Det går att i")
+	print ("canvas ge kurserna smeknamn vilket kan underlätta kursvalet. Alla kurser")
+	print ("som matchar ditt sökord väljs. Exempel: DD1321 väljer alla kursomgångar")
+	print('\nkör så här: python3 enstaka.py <kursnamn>')
+	print('för hjälp:  python3 enstaka.py <kursnamn> ?\n')
 	sys.exit(1)
-      # TODO help text
 
 ###############################################################################
 #
@@ -300,9 +428,23 @@ def run_instructions():
 # 
 def parse_commandline_options():
 	global g_color
-	for arg in sys.argv:
+	global g_filter
+
+	option = ""
+	for i, arg in enumerate(sys.argv):
 		if arg == "--nocolor":
 			g_color = False
+		elif arg[0] == '-' and len(arg) == 2 and arg[1] in "nNuUiItT":
+			option = arg
+		elif len(option) > 0:
+			option += " " + arg
+		elif arg == "?":
+			handle_input_options( "?", None)
+
+	if len(option) > 2:
+		g_filter = handle_input_options( option, None )
+	
+
 
 ###############################################################################
 #
@@ -318,7 +460,7 @@ parse_commandline_options()
 courses = get_courses(sys.argv[1])
 
 if len(courses) == 0:
-	print('hittade ej angiven kurs')
+	print('hittade ej angiven kurs\n')
 	sys.exit(1)
 
 
@@ -336,6 +478,10 @@ while True:
 
 	if len(search_term) == 0:
 		break
+
+	if search_term[0] in "?-":
+		g_filter = handle_input_options(search_term, g_filter)
+		continue
 	
 	if len(search_term) < 3:
 		print('sökordet måste ha minst tre tecken')
@@ -382,7 +528,10 @@ while True:
 			
 			if len(index) == 0:
 				break
-			
+			elif index == '?':
+				print('\nvälj en student (1 .. ' + str(len(students)) + '). Tryck <enter> för att avbryta')
+				continue
+
 			else:
 				try:
 					index = int(index)
@@ -400,6 +549,6 @@ while True:
 	
 	if chosen_student is None: continue
 	
-	choose_assignment(chosen_student)
+	choose_assignment(chosen_student, g_filter)
 
 entrylist()
