@@ -58,6 +58,8 @@ def thread_retrieve_assignments(course, assignments):
 #
 # returns filter, a dictionary of item numbers or regex list of assignements
 def handle_input_options( input, filter ):
+	if len(input) < 1:
+		return
 	if input[0] == '?':
 		if g_color: print('\033[0;7m', "  Hjälp  ", '\033[0m')
 		else: print("   Hjälp")
@@ -197,18 +199,22 @@ def choose_assignment(student, filter):
 			print(padding + 'index  resultat  datum             uppgift')
 
 			allfiltered = True
-			for i, assignment in enumerate(assignments, 1):
-
+			nrid = 0
+			filterlistids = {}
+			for cid, assignment in enumerate(assignments, 1):
+                                
 				################## filter ########################
 				# 
 				# Filtrerar bort assignments som inte matchar
 				if filter != None:
+                                        # filter set, endast vissa nummer ska visas
 					if isinstance(filter, set):
-						if i not in filter:
+						if cid not in filter:
 							continue
 						else:
 							allfiltered = False
-							
+
+					# filter regex list, det som matchar ska bort
 					elif isinstance(filter, list):
 						matchfound = False
 						for pattern in filter:
@@ -217,8 +223,10 @@ def choose_assignment(student, filter):
 								allfiltered = False
 						if not matchfound:
 							continue
-				################## filter ########################
+				################## filter end ####################
 				
+				nrid += 1
+				filterlistids[nrid] = cid - 1
 				
 				if multiple_courses and previous_course != assignment.course:
 					print('\n' + str(assignment.course))
@@ -229,12 +237,13 @@ def choose_assignment(student, filter):
 				current_grade = nice_grade(current_result['grade'])
 				current_grade_date = current_result['date']
 				
-				if current_grade_date is not None: current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
+				if current_grade_date is not None:
+					current_grade_date = dateutil.parser.parse(current_grade_date).strftime('%Y-%m-%d %H:%M')
 				else: current_grade_date = '                '
 				
 				print(padding, end = '')
 				
-				print('{0: <6}'.format(str(i)), end = ' ')
+				print('{0: <6}'.format(str( nrid )), end = ' ')
 				entry = (student, assignment)
 				isincolor = g_color and entry in g_oldgrades and g_oldgrades[ entry ] != current_grade
 				if isincolor: print('\033[0;7m', end = '')
@@ -262,32 +271,36 @@ def choose_assignment(student, filter):
 				continue
 			
 			try:
-				choice = int(choice)
-				
-				if choice < 1 or choice > len(assignments):
-					print('ogiltigt val, försök igen')
-					continue
-				
-				assignment_choice = assignments[choice - 1]
-		
+				if str.isdigit(choice):
+					choice = int(choice)
+
+					if choice < 1 or choice > nrid:
+						print('ogiltigt val, försök igen')
+						continue
+
+					assignment_choice = assignments[ filterlistids[ choice ] ]
+
+				else: 
+					assignment_choice = None
+
+					for assignment in assignments:
+						if assignment.name.casefold() == choice.casefold():
+							if assignment_choice is not None:
+								print('flera uppgifter har samma namn, ange ett index')
+								assignment_choice = -1
+								break
+
+							assignment_choice = assignment
+
+					if assignment_choice is None:
+						print('ogiltigt val, försök igen')
+						continue
+
+					if assignment_choice == -1:
+						continue
 			except:
-				assignment_choice = None
-				
-				for assignment in assignments:
-					if assignment.name.casefold() == choice.casefold():
-						if assignment_choice is not None:
-							print('flera uppgifter har samma namn, ange ett index')
-							assignment_choice = -1
-							break
-						
-						assignment_choice = assignment
-				
-				if assignment_choice is None:
-					print('ogiltigt val, försök igen')
-					continue
-				
-				if assignment_choice == -1:
-					continue
+				print('ogiltigt val, försök igen')
+				continue
 		
 		old_grade = nice_grade(student.get_result(assignment_choice)['grade'])
 		fetch_grades = set_grade(student, assignment_choice, old_grade)
