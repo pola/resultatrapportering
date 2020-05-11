@@ -26,7 +26,16 @@ class Course:
 		self.name = course['name']
 		self.name_original = course['original_name'] if 'original_name' in course else None
 		self.code = course['course_code'][0:6]
-		self.date_start = course['start_at'][0:10]
+		# FIX för onlinetentakurs som har start_date i namnet. 
+		if course['start_at'] == None:
+			# kolla om datumet finns i namnet
+			m = re.match(".*(\d\d\d\d-\d\d-\d\d).*", self.name)
+			if m:
+				self.date_start = m.group(1)
+			else:
+				self.date_start = "Startdatum saknas"
+		else:	     
+			self.date_start = course['start_at'][0:10]
 		self.__assignments = None
 		self.__students = None
 	
