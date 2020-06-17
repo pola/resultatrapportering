@@ -122,7 +122,11 @@ class Student:
 		self.__results[course] = {}
 		
 		for submission in submissions:
-			assignment = next(x for x in course.get_assignments() if x.id == submission['assignment_id'])
+			for x in course.get_assignments():
+				if x.id == submission['assignment_id']:
+					#print("## i get_results", x.id, x)
+					assignment = x
+			#assignment = next(x for x in course.get_assignments() if x.id == submission['assignment_id'])
 			
 			if submission['grade'] is None: continue
 			
